@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="banner.png" alt="Tactical Assault" width="100%" />
+</div>
+
 # 🎯 Tactical Assault
 
 ![Tactical Assault](https://img.shields.io/badge/Status-In%20Development-orange) ![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white) ![AssemblyScript](https://img.shields.io/badge/AssemblyScript-blue?logo=webassembly&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
