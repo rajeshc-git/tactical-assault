@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "assemblyscript": "https://cdn.jsdelivr.net/npm/assemblyscript@0.28.20/dist/assemblyscript.js",
+    "assemblyscript/asc": "https://cdn.jsdelivr.net/npm/assemblyscript@0.28.20/dist/asc.js",
+    "binaryen": "https://cdn.jsdelivr.net/npm/binaryen@131.0.0-nightly.20260721/index.js",
+    "long": "https://cdn.jsdelivr.net/npm/long@5.3.2/index.js"
+  }
+}
+  

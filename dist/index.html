@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Explore a breathtaking 3D snowy mountain landscape with first-person controls">
+  <title>Tactical Assault — FPS Combat Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" crossorigin src="/assets/index-DuMI-SjV.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C0rtdT21.css">
+</head>
+<body class="pointer-unlocked">
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loader-content">
+      <div class="loader-icon">
+        <span class="mountain-emoji">🏔️</span>
+      </div>
+      <h1>Tactical Assault</h1>
+      <p class="loader-subtitle">Generating terrain &amp; preparing deployment...</p>
+      <div class="progress-bar">
+        <div id="progress-fill"></div>
+      </div>
+      <p class="loader-tip">Tip: Use WASD to move, Mouse to look around</p>
+    </div>
+    <div class="snow-bg"></div>
+  </div>
+
+  <!-- Pointer Lock Blocker (Start Screen) -->
+  <div id="blocker" class="theme-arctic">
+    <!-- Dynamic map-themed color overlay -->
+    <div class="menu-theme-overlay"></div>
+    <!-- Animated background particles -->
+    <div class="menu-particles">
+      <div class="particle p1"></div>
+      <div class="particle p2"></div>
+      <div class="particle p3"></div>
+      <div class="particle p4"></div>
+      <div class="particle p5"></div>
+      <div class="particle p6"></div>
+    </div>
+    <div class="menu-vignette"></div>
+
+    <div class="blocker-content">
+      <!-- Title Section -->
+      <div class="blocker-header">
+        <div class="title-badge">⚔️</div>
+        <h1>TACTICAL<br><span class="title-accent">ASSAULT</span></h1>
+        <div class="title-line"></div>
+        <p class="subtitle">SELECT YOUR BATTLEFIELD</p>
+      </div>
+
+      <!-- Map Selection Grid -->
+      <div id="map-select-grid">
+        <div class="map-card selected" data-map="arctic">
+          <div class="map-card-glow"></div>
+          <div class="map-card-icon">🏔️</div>
+          <div class="map-card-name">Arctic Tundra</div>
+          <div class="map-card-desc">Snow plains &amp; icy hills</div>
+        </div>
+        <div class="map-card" data-map="forest">
+          <div class="map-card-glow"></div>
+          <div class="map-card-icon">🌲</div>
+          <div class="map-card-name">Green Forest</div>
+          <div class="map-card-desc">Lush valleys &amp; dense pines</div>
+        </div>
+        <div class="map-card" data-map="autumn">
+          <div class="map-card-glow"></div>
+          <div class="map-card-icon">🍂</div>
+          <div class="map-card-name">Autumn Park</div>
+          <div class="map-card-desc">Golden light &amp; warm foliage</div>
+        </div>
+        <div class="map-card" data-map="desert">
+          <div class="map-card-glow"></div>
+          <div class="map-card-icon">🏜️</div>
+          <div class="map-card-name">Desert Wasteland</div>
+          <div class="map-card-desc">Scorching dunes &amp; sand</div>
+        </div>
+      </div>
+
+      <!-- Controls Section -->
+      <div class="controls-section">
+        <div class="controls-grid">
+          <div class="key-group">
+            <div class="key-row">
+              <span class="key">W</span>
+            </div>
+            <div class="key-row">
+              <span class="key">A</span>
+              <span class="key">S</span>
+              <span class="key">D</span>
+            </div>
+            <span class="key-label">Move</span>
+          </div>
+          <div class="key-group">
+            <div class="key-row">
+              <span class="key wide">🖱️ Mouse</span>
+            </div>
+            <span class="key-label">Look Around</span>
+            <div class="key-sub-row">
+              <span class="key-sub">L-Click → Fire</span>
+            </div>
+            <div class="key-sub-row">
+              <span class="key-sub">R-Click → ADS</span>
+            </div>
+          </div>
+          <div class="key-group">
+            <div class="key-row">
+              <span class="key wide">Space</span>
+            </div>
+            <span class="key-label">Jump</span>
+          </div>
+          <div class="key-group">
+            <div class="key-row">
+              <span class="key">Shift</span>
+            </div>
+            <span class="key-label">Sprint</span>
+          </div>
+          <div class="key-group">
+            <div class="key-row">
+              <span class="key">P</span>
+              <span class="key">Esc</span>
+            </div>
+            <span class="key-label">Pause</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deploy Button -->
+      <div class="deploy-wrapper">
+        <div class="start-pulse" id="deploy-btn-content">
+          <span class="deploy-icon" id="deploy-icon-elem">▶</span>
+          <span id="deploy-text">DEPLOY</span>
+        </div>
+        <div class="deploy-hint">Click anywhere to start</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vignette Overlay -->
+  <div id="vignette"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+
+
+    <!-- Info Panel (top-left) -->
+    <div id="info-panel">
+      <div class="info-row status-container" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 4px 0 6px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.1rem; filter: drop-shadow(0 0 4px rgba(255, 51, 102, 0.6));">❤️</span>
+          <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; width: 100px; height: 10px; overflow: hidden; position: relative;">
+            <div id="health-bar-fill" style="background: #00ff66; width: 100%; height: 100%; transition: width 0.15s ease, background-color 0.15s ease;"></div>
+          </div>
+          <span id="health-percentage" style="font-variant-numeric: tabular-nums; font-weight: bold; font-size: 0.82rem; color: #00ff66; text-shadow: 0 0 6px rgba(0, 255, 102, 0.4);">100%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); margin-left: 2px;">
+          <span>Lives:</span>
+          <span id="lives-display" style="color: #ff3366; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 6px rgba(255, 51, 102, 0.5);">❤️❤️❤️</span>
+        </div>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">⭐</span>
+        <span id="level-display">Level 1</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">🔫</span>
+        <span id="weapon-display">Pistol</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">⚡</span>
+        <span id="ammo-display">Ammo: 20 / 20</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">🏆</span>
+        <span id="score-display">Points: 0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">💀</span>
+        <span id="kills-display">Kills: 0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">🎮</span>
+        <span id="fps">FPS: 0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">🌤️</span>
+        <span id="weather-display">Clear</span>
+      </div>
+    </div>
+
+    <!-- Level Up Banner -->
+    <div id="level-banner">LEVEL UP!</div>
+
+    <!-- Controls Help (bottom-center) -->
+    <div id="controls-panel">
+      <span>WASD Move &nbsp;│&nbsp; Left Click Fire &nbsp;│&nbsp; Right Click ADS &nbsp;│&nbsp; Q Rocket &nbsp;│&nbsp; R Reload &nbsp;│&nbsp; Space Jump &nbsp;│&nbsp; Shift Sprint &nbsp;│&nbsp; H Help</span>
+    </div>
+
+    <!-- Custom Dynamic Virtual Cursor & Hit Marker -->
+    <div id="virtual-cursor" class="default" style="--spread: 12px;">
+      <div class="crosshair-bar top"></div>
+      <div class="crosshair-bar right"></div>
+      <div class="crosshair-bar bottom"></div>
+      <div class="crosshair-bar left"></div>
+      <div class="crosshair-dot"></div>
+      <div id="hit-marker">
+        <div class="hit-tick tl"></div>
+        <div class="hit-tick tr"></div>
+        <div class="hit-tick bl"></div>
+        <div class="hit-tick br"></div>
+      </div>
+    </div>
+
+    <!-- Inventory Hotbar HUD -->
+    <div id="inventory-hud">
+      <div class="inventory-slots">
+        <div class="inventory-slot" data-index="0"><span class="item-label">Empty</span></div>
+        <div class="inventory-slot" data-index="1"><span class="item-label">Empty</span></div>
+        <div class="inventory-slot" data-index="2"><span class="item-label">Empty</span></div>
+        <div class="inventory-slot" data-index="3"><span class="item-label">Empty</span></div>
+        <div class="inventory-slot" data-index="4"><span class="item-label">Empty</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.warn('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
