@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  game:
+    build: .
+    container_name: tactical-assault
+    ports:
+      - "80:80"
+    restart: unless-stopped
