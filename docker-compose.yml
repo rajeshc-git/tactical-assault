@@ -5,5 +5,5 @@ services:
     build: .
     container_name: tactical-assault
     ports:
-      - "80:80"
+      - "5008:80"
     restart: unless-stopped
