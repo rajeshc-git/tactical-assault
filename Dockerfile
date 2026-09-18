@@ -1,5 +1,5 @@
 # Stage 1: Build the game using Bun for lightning-fast speeds
-FROM oven/bun:1 as builder
+FROM oven/bun:latest as builder
 
 # Set the working directory inside the container
 WORKDIR /app
