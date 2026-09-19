@@ -1192,6 +1192,7 @@ class Demon {
     }
 
     this.game.createExplosionParticles(this.mesh.position);
+    this.game.playEnemyDeathSound();
     this.game.playExplosionSound();
 
     // Play Sitting/Death animation clip if available
@@ -1908,7 +1909,8 @@ class Game {
       railgun: '/assets/weapons/sound/railgun.mp3',
       ak47: '/assets/weapons/sound/ak47.mp3',
       rocket: '/assets/weapons/sound/rocket.mp3',
-      reload: '/assets/weapons/sound/reload.mp3'
+      reload: '/assets/weapons/sound/reload.mp3',
+      dying: '/assets/weapons/sound/dying.mp3'
     };
 
     if (!this.audioCtx) {
@@ -3343,6 +3345,10 @@ class Game {
   playRocketSound() {
     // Clean launcher tube discharge sound
     this.playSoundBuffer('pistol', false, 0.60);
+  }
+
+  playEnemyDeathSound() {
+    this.playSoundBuffer('dying', false, 0.75);
   }
 
   playExplosionSound() {
