@@ -5581,8 +5581,7 @@ class Game {
       const dYaw = this.gyroSmoothYawRate * dt * gyroSensitivity * 57.2958 * this.gyroMultiplier;
       const dPitch = this.gyroSmoothPitchRate * dt * gyroSensitivity * 57.2958 * this.gyroMultiplier;
 
-      // Inverted horizontal (left/right) axis per user preference, vertical (up/down pitch) preserved
-      this.camYaw -= dYaw;
+      this.camYaw += dYaw;
       this.camPitch = THREE.MathUtils.clamp(
         this.camPitch + dPitch,
         -1.35,
@@ -5634,8 +5633,7 @@ class Game {
       const isADS = this.isADS;
       const scale = isADS ? 0.045 : 0.035;
 
-      // Inverted horizontal (left/right) axis per user preference, vertical (up/down pitch) preserved
-      this.camYaw -= (deltaYaw * (Math.PI / 180)) * scale * this.gyroMultiplier;
+      this.camYaw += (deltaYaw * (Math.PI / 180)) * scale * this.gyroMultiplier;
       this.camPitch = THREE.MathUtils.clamp(
         this.camPitch + (deltaPitch * (Math.PI / 180)) * scale * this.gyroMultiplier,
         -1.35,
