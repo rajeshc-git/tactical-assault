@@ -4,7 +4,7 @@
 // ================================================================
 import * as THREE from 'three';
 import './style.css';
-import createEngineModule from '../public/engine.js';
+import createEngineModule from './engine.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
