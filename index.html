@@ -2,15 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Explore a breathtaking 3D snowy mountain landscape with first-person controls">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tactical Assault">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0e1a">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="description" content="Tactical Assault — High-octane 3D First-Person Shooter Combat Arena featuring 4 unique battlefields, fluid gyro motion aiming, and tactical gameplay.">
   <title>Tactical Assault — FPS Combat Arena</title>
+
+  <!-- Favicons & Platform Icons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <!-- Open Graph / Social Sharing & SEO -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Tactical Assault — FPS Combat Arena">
+  <meta property="og:description" content="High-octane 3D First-Person Shooter Combat Arena featuring multiple battlefields, fluid motion aiming, and tactical gameplay.">
+  <meta property="og:image" content="/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tactical Assault — FPS Combat Arena">
+  <meta name="twitter:description" content="High-octane 3D First-Person Shooter Combat Arena featuring multiple battlefields, fluid motion aiming, and tactical gameplay.">
+  <meta name="twitter:image" content="/og-image.png">
+
   <link rel="stylesheet" href="/src/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="pointer-unlocked">
+
+  <!-- Rotate Device Overlay -->
+  <div id="rotate-device-overlay">
+    <div class="rotate-content">
+      <div class="rotate-icon">🔄</div>
+      <h2>Please Rotate Your Device</h2>
+      <p>Tactical Assault is best played in landscape mode.</p>
+    </div>
+  </div>
 
   <!-- Loading Screen -->
   <div id="loading-screen">
@@ -42,6 +79,14 @@
       <div class="particle p6"></div>
     </div>
     <div class="menu-vignette"></div>
+
+        <!-- Fullscreen Toggle Button for Touchscreens / Mobile -->
+    <button id="btn-fullscreen-toggle" class="fullscreen-toggle-btn" type="button" aria-label="Toggle Fullscreen">
+      <svg class="fs-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+      </svg>
+      <span class="fs-text">FULLSCREEN</span>
+    </button>
 
     <div class="blocker-content">
       <!-- Title Section -->
@@ -80,51 +125,44 @@
         </div>
       </div>
 
-      <!-- Controls Section -->
-      <div class="controls-section">
-        <div class="controls-grid">
-          <div class="key-group">
-            <div class="key-row">
-              <span class="key">W</span>
-            </div>
-            <div class="key-row">
-              <span class="key">A</span>
-              <span class="key">S</span>
-              <span class="key">D</span>
-            </div>
-            <span class="key-label">Move</span>
+            <!-- Graphics / Performance Quality Selector -->
+      <div id="graphics-select-section">
+        <div class="quality-section-title">⚡ WORLD DENSITY & PERFORMANCE</div>
+        <div class="quality-button-group">
+          <button class="quality-btn" data-quality="low" type="button">
+            <span class="q-icon">⚡</span>
+            <span class="q-name">Performance</span>
+            <span class="q-desc">Sparse Props / Max FPS</span>
+          </button>
+          <button class="quality-btn selected" data-quality="medium" type="button">
+            <span class="q-icon">⚖️</span>
+            <span class="q-name">Balanced</span>
+            <span class="q-desc">Standard Density</span>
+          </button>
+          <button class="quality-btn" data-quality="high" type="button">
+            <span class="q-icon">✨</span>
+            <span class="q-name">Ultra Quality</span>
+            <span class="q-desc">Lush Density & Shadows</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Gyroscope Settings Section (PUBG-Style On/Off & Sensitivity Slider) -->
+      <div id="gyro-settings-section">
+        <div class="gyro-section-header">
+          <div class="gyro-title-wrapper">
+            <span class="gyro-icon">🎯</span>
+            <span class="gyro-title">GYROSCOPE AIMING</span>
           </div>
-          <div class="key-group">
-            <div class="key-row">
-              <span class="key wide">🖱️ Mouse</span>
-            </div>
-            <span class="key-label">Look Around</span>
-            <div class="key-sub-row">
-              <span class="key-sub">L-Click → Fire</span>
-            </div>
-            <div class="key-sub-row">
-              <span class="key-sub">R-Click → ADS</span>
-            </div>
-          </div>
-          <div class="key-group">
-            <div class="key-row">
-              <span class="key wide">Space</span>
-            </div>
-            <span class="key-label">Jump</span>
-          </div>
-          <div class="key-group">
-            <div class="key-row">
-              <span class="key">Shift</span>
-            </div>
-            <span class="key-label">Sprint</span>
-          </div>
-          <div class="key-group">
-            <div class="key-row">
-              <span class="key">P</span>
-              <span class="key">Esc</span>
-            </div>
-            <span class="key-label">Pause</span>
-          </div>
+          <button id="gyro-toggle-btn" class="gyro-toggle-btn active" type="button" aria-label="Toggle Gyroscope">
+            <span class="toggle-indicator"></span>
+            <span class="toggle-label" id="gyro-toggle-status">ON</span>
+          </button>
+        </div>
+        <div class="gyro-slider-row" id="gyro-slider-container">
+          <span class="gyro-slider-label">Sensitivity</span>
+          <input type="range" id="gyro-sensitivity-slider" min="20" max="300" value="65" step="5" class="gyro-range-slider" />
+          <span class="gyro-val-badge" id="gyro-sensitivity-value">65%</span>
         </div>
       </div>
 
@@ -134,7 +172,7 @@
           <span class="deploy-icon" id="deploy-icon-elem">▶</span>
           <span id="deploy-text">DEPLOY</span>
         </div>
-        <div class="deploy-hint">Click anywhere to start</div>
+        <div class="deploy-hint">Tap DEPLOY to enter combat</div>
       </div>
     </div>
   </div>
@@ -142,11 +180,48 @@
   <!-- Vignette Overlay -->
   <div id="vignette"></div>
 
+  
+  <!-- Game Over Screen Modal -->
+  <div id="game-over-modal" style="display: none;">
+    <div class="game-over-backdrop"></div>
+    <div class="game-over-content">
+      <div class="game-over-badge">💀</div>
+      <h1 class="game-over-title">GAME OVER</h1>
+      <p class="game-over-subtitle">TACTICAL SYSTEM TERMINATED</p>
+      
+      <div class="game-over-stats">
+        <div class="game-over-stat">
+          <span class="stat-label">⭐ LEVEL</span>
+          <span class="stat-value" id="go-level">1</span>
+        </div>
+        <div class="game-over-stat">
+          <span class="stat-label">💀 KILLS</span>
+          <span class="stat-value" id="go-kills">0</span>
+        </div>
+        <div class="game-over-stat">
+          <span class="stat-label">🏆 SCORE</span>
+          <span class="stat-value" id="go-score">0</span>
+        </div>
+      </div>
+      
+      <div class="game-over-actions">
+        <button id="btn-restart-game" class="game-over-btn restart-btn" type="button">
+          <span class="go-btn-icon">🔄</span>
+          <span>RESTART GAME</span>
+        </button>
+        <button id="btn-menu-game" class="game-over-btn menu-btn" type="button">
+          <span class="go-btn-icon">🏠</span>
+          <span>MAIN MENU</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- HUD -->
   <div id="hud">
 
 
-    <!-- Info Panel (top-left) -->
+        <!-- Stats Panel (Desktop Full Stats / Mobile BGMI Transparent Tape Stats) -->
     <div id="info-panel">
       <div class="info-row status-container" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 4px 0 6px;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -161,31 +236,27 @@
           <span id="lives-display" style="color: #ff3366; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 6px rgba(255, 51, 102, 0.5);">❤️❤️❤️</span>
         </div>
       </div>
-      <div class="info-row">
+      <div class="info-row" id="row-level">
         <span class="info-icon">⭐</span>
         <span id="level-display">Level 1</span>
       </div>
-      <div class="info-row">
-        <span class="info-icon">🔫</span>
-        <span id="weapon-display">Pistol</span>
-      </div>
-      <div class="info-row">
-        <span class="info-icon">⚡</span>
-        <span id="ammo-display">Ammo: 20 / 20</span>
-      </div>
-      <div class="info-row">
-        <span class="info-icon">🏆</span>
-        <span id="score-display">Points: 0</span>
-      </div>
-      <div class="info-row">
+      <div class="info-row" id="row-kills">
         <span class="info-icon">💀</span>
         <span id="kills-display">Kills: 0</span>
       </div>
-      <div class="info-row">
-        <span class="info-icon">🎮</span>
-        <span id="fps">FPS: 0</span>
+      <div class="info-row" id="row-score">
+        <span class="info-icon">🏆</span>
+        <span id="score-display">Points: 0</span>
       </div>
-      <div class="info-row">
+      <div class="info-row" id="row-fps">
+        <span class="info-icon">🎮</span>
+        <span id="fps">FPS: 60</span>
+      </div>
+      <div class="info-row desktop-stat-row" id="row-weapon">
+        <span class="info-icon">🔫</span>
+        <span id="weapon-display">Pistol</span>
+      </div>
+      <div class="info-row desktop-stat-row" id="row-weather">
         <span class="info-icon">🌤️</span>
         <span id="weather-display">Clear</span>
       </div>
@@ -224,6 +295,99 @@
         <div class="inventory-slot" data-index="4"><span class="item-label">Empty</span></div>
       </div>
     </div>
+    
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+      <div id="mobile-joystick-zone">
+        <div id="mobile-joystick-base">
+          <div id="mobile-joystick-knob"></div>
+        </div>
+      </div>
+      <div id="mobile-look-zone"></div>
+      
+      <div class="mobile-action-buttons">
+        <!-- Left-Hand Fire Button (4-Finger Claw Support) -->
+        <button id="btn-mobile-fire-left" class="mobile-btn fire fire-left" aria-label="Fire (Left)">
+          <svg class="btn-svg-icon" viewBox="0 0 32 32" width="30" height="30" fill="currentColor">
+            <path d="M16 3c-1.8 2.5-3 6.5-3 10v12c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V13c0-3.5-1.2-7.5-3-10z"></path>
+            <path d="M9.5 8c-1.2 1.8-2 4.8-2 7.5v8.5c0 .8.7 1.5 1.5 1.5h1c.8 0 1.5-.7 1.5-.7v-8.5c0-2.7-.8-5.7-2-7.5z" opacity="0.75"></path>
+            <path d="M22.5 8c-1.2 1.8-2 4.8-2 7.5v8.5c0 .8.7 1.5 1.5 1.5h1c.8 0 1.5-.7 1.5-.7v-8.5c0-2.7-.8-5.7-2-7.5z" opacity="0.75"></path>
+            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4" stroke-dasharray="3 3"></circle>
+          </svg>
+          <span class="btn-txt">FIRE</span>
+        </button>
+        <!-- PUBG-style Top-Right Sniper Scope Aim Button -->
+        <button id="btn-mobile-ads" class="mobile-btn ads" aria-label="Scope Aim">
+          <svg class="btn-svg-icon" viewBox="0 0 32 32" width="28" height="28" fill="none" stroke="currentColor">
+            <circle cx="16" cy="16" r="13" stroke-width="2"></circle>
+            <circle cx="16" cy="16" r="7" stroke-width="1.5" stroke-dasharray="2 2"></circle>
+            <line x1="16" y1="3" x2="16" y2="10" stroke-width="2"></line>
+            <line x1="16" y1="22" x2="16" y2="29" stroke-width="2"></line>
+            <line x1="3" y1="16" x2="10" y2="16" stroke-width="2"></line>
+            <line x1="22" y1="16" x2="29" y2="16" stroke-width="2"></line>
+            <line x1="14" y1="20" x2="18" y2="20" stroke-width="1.5"></line>
+            <line x1="13.5" y1="23" x2="18.5" y2="23" stroke-width="1.5"></line>
+            <circle cx="16" cy="16" r="1.5" fill="currentColor"></circle>
+          </svg>
+          <span class="btn-txt">AIM</span>
+        </button>
+
+        <!-- Jumping Soldier / Human Silhouette Jump Button -->
+        <button id="btn-mobile-jump" class="mobile-btn jump" aria-label="Jump">
+          <svg class="btn-svg-icon" viewBox="0 0 32 32" width="28" height="28" fill="currentColor">
+            <circle cx="21" cy="6.5" r="3"></circle>
+            <path d="M19 11c-1 0-2.2.6-2.8 1.5l-3.5 4.5c-.7.9-.5 2.2.4 2.9.9.7 2.2.5 2.9-.4l2.2-2.8v5.5l-4.5 4.8c-.8.8-.8 2.1 0 2.9.8.8 2.1.8 2.9 0l5.5-5.8c.6-.6.9-1.4.9-2.2v-6.5l2.5 2.5c.8.8 2.1.8 2.9 0 .8-.8.8-2.1 0-2.9l-3.8-3.8c-.8-.9-1.8-1.5-3.2-1.5z"></path>
+          </svg>
+          <span class="btn-txt">JUMP</span>
+        </button>
+
+        <!-- Fast Running Soldier Silhouette Sprint Button (Hold or Tap to Sprint) -->
+        <button id="btn-mobile-sprint" class="mobile-btn sprint" aria-label="Sprint">
+          <svg class="btn-svg-icon" viewBox="0 0 32 32" width="24" height="24" fill="currentColor">
+            <circle cx="21" cy="5.5" r="2.8"></circle>
+            <path d="M14.2 10.5l4.5-2.2c1.2-.6 2.6-.1 3.2 1.1l2.1 4.2-2.7 1.3-1.6-3.2-3.6 1.8 1.4 5.2 4.6 4.6v7.7h-3v-5.8l-3.5-3.5-1.8 3.8 3.5 5.5-2.5 1.6-4.5-7 2.4-5.2-1.3-4.8-2.6 1.3v4.5H6v-6.2c0-1.1.7-2.1 1.7-2.5l6.5-2.5z"></path>
+          </svg>
+          <span class="btn-txt">SPRINT</span>
+        </button>
+
+                
+
+        <!-- Tactical Ammo Magazine Reload Button -->
+        <button id="btn-mobile-reload" class="mobile-btn reload" aria-label="Reload">
+          <svg class="btn-svg-icon" viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor">
+            <path d="M27 16A11 11 0 0 0 16 5 11.5 11.5 0 0 0 7.8 8.8L5 6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+            <polyline points="5 11 5 6 10 6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <path d="M5 16a11 11 0 0 0 11 11 11.5 11.5 0 0 0 8.2-3.8L27 26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+            <polyline points="27 21 27 26 22 26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <rect x="14.5" y="11" width="3" height="10" rx="1.5" fill="currentColor"></rect>
+          </svg>
+          <span class="btn-txt">RELOAD</span>
+        </button>
+
+        <!-- Tactical Muzzle Blast Fire Button -->
+        <button id="btn-mobile-fire" class="mobile-btn fire" aria-label="Fire">
+          <svg class="btn-svg-icon" viewBox="0 0 32 32" width="32" height="32" fill="currentColor">
+            <path d="M16 3c-1.8 2.5-3 6.5-3 10v12c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V13c0-3.5-1.2-7.5-3-10z"></path>
+            <path d="M9.5 8c-1.2 1.8-2 4.8-2 7.5v8.5c0 .8.7 1.5 1.5 1.5h1c.8 0 1.5-.7 1.5-.7v-8.5c0-2.7-.8-5.7-2-7.5z" opacity="0.75"></path>
+            <path d="M22.5 8c-1.2 1.8-2 4.8-2 7.5v8.5c0 .8.7 1.5 1.5 1.5h1c.8 0 1.5-.7 1.5-.7v-8.5c0-2.7-.8-5.7-2-7.5z" opacity="0.75"></path>
+            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4" stroke-dasharray="3 3"></circle>
+          </svg>
+          <span class="btn-txt">FIRE</span>
+        </button>
+      </div>
+      <button id="btn-mobile-pause" class="mobile-btn settings-btn" aria-label="Settings / Menu">
+        <svg class="btn-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button id="btn-hud-dock" class="mobile-btn hud-dock-btn" type="button" aria-label="Toggle Stats HUD">
+        <svg class="btn-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+          <path d="M7 14v4M12 10v8M17 6v12"></path>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <script type="importmap">
@@ -235,13 +399,54 @@
   }
   </script>
   <script type="module" src="/src/game.ts"></script>
-  <script>
+      <script>
+    // Senior Developer PWA / Service Worker Lifecycle & Zero-Stale-Cache Management
+    const APP_VERSION = '4.2.0';
+
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
-          .catch(err => console.warn('Service Worker registration failed:', err));
-      });
+      const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '3000' || location.port === '5173';
+      if (isDev) {
+        // In local development, purge stale service workers and caches so live code changes apply instantly
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const registration of registrations) {
+            registration.unregister();
+            console.log('[Dev] Unregistered stale service worker');
+          }
+        });
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            for (const name of names) {
+              if (name.startsWith('tactical-assault')) caches.delete(name);
+            }
+          });
+        }
+      } else {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js?v=' + APP_VERSION)
+            .then(reg => {
+              console.log('[PWA] Service Worker active, version:', APP_VERSION);
+              reg.update();
+              
+              // Seamless live auto-reload when a new version is installed in the background
+              reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('[PWA] New version installed. Soft refreshing to apply latest changes...');
+                      window.location.reload();
+                    }
+                  });
+                }
+              });
+
+              document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') reg.update();
+              });
+            })
+            .catch(err => console.warn('Service Worker registration failed:', err));
+        });
+      }
     }
   </script>
 </body>

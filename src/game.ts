@@ -196,7 +196,7 @@ class TerrainChunk {
 
     const treeRange = this.game.mapConfig.treeRange || [0.1, 0.58];
     const treePositions = [];
-    const step = 45;
+    const step = this.game.treeStep || 50;
 
     for (let x = 20; x < size; x += step) {
       for (let z = 20; z < size; z += step) {
@@ -299,12 +299,13 @@ class TerrainChunk {
     const coverGroup = new THREE.Group();
     this.coverObstacles = [];
 
-    // Optimized, lightweight cover obstacle placement for smooth 60+ FPS performance (step size 120)
-    const step = 120;
-    for (let x = 35; x < size; x += step) {
-      for (let z = 35; z < size; z += step) {
+    // Dynamic cover obstacle placement based on graphics quality
+    const step = this.game.coverStep || (this.game.graphicsQuality === 'low' ? 240 : (this.game.graphicsQuality === 'medium' ? 140 : 90));
+    const threshold = this.game.graphicsQuality === 'low' ? 0.35 : (this.game.graphicsQuality === 'medium' ? 0.18 : 0.06);
+    for (let x = 30; x < size; x += step) {
+      for (let z = 30; z < size; z += step) {
         const nVal = this.game.wasm.noise(startX + x * 0.05, startZ + z * 0.05);
-        if (nVal > 0.12) {
+        if (nVal > threshold) {
           const worldX = startX + x + (this.game.wasm.noise(startX + x * 3, startZ + z * 3) * 20);
           const worldZ = startZ + z + (this.game.wasm.noise(startZ + z * 3, startX + x * 3) * 20);
           const y = this.game.getHeightAt(worldX, worldZ);
@@ -313,7 +314,7 @@ class TerrainChunk {
           if (hr > 0.08 && hr < 0.75) {
             // Generate full-range [-1, 1] noise value for index selection and rotation to fix the 2-model mixing bug
             const seedNoise = this.game.wasm.noise(worldX * 0.12, worldZ * 0.12);
-            
+
             const coverObj = this.buildCoverModel(mapId, seedNoise, this.lod);
             coverObj.position.set(worldX, y, worldZ);
 
@@ -391,12 +392,12 @@ class TerrainChunk {
   buildCoverModel(mapId: string, noiseVal: number = 0, lod: number = 0) {
     if (this.game.obstacleGltfs && this.game.obstacleGltfs.length > 0) {
       const group = new THREE.Group();
-      
+
       // Determine index based on noise value (scale from [-1, 1] to [0, length-1])
       const normalizedNoise = (noiseVal + 1) / 2;
       const index = Math.floor(normalizedNoise * this.game.obstacleGltfs.length) % this.game.obstacleGltfs.length;
       const selectedGltf = this.game.obstacleGltfs[index];
-      
+
       // Scale is also deterministic based on the noise value (12 to 16, or 36 to 48 for obsticle1)
       let targetScale = 12.0 + normalizedNoise * 4.0;
       const isObst1 = (selectedGltf as any).isObsticle1;
@@ -443,7 +444,7 @@ class TerrainChunk {
             }
           }
         });
-        
+
         group.add(model);
         return group;
       }
@@ -621,36 +622,40 @@ class TerrainChunk {
 // ================================================================
 class PlayerRocket {
   [key: string]: any;
+  static sharedBodyGeo: THREE.CylinderGeometry | null = null;
+  static sharedTipGeo: THREE.ConeGeometry | null = null;
+  static sharedGlowRingGeo: THREE.TorusGeometry | null = null;
+  static sharedBodyMat: THREE.MeshStandardMaterial | null = null;
+  static sharedTipMat: THREE.MeshBasicMaterial | null = null;
+  static sharedGlowRingMat: THREE.MeshBasicMaterial | null = null;
+
   constructor(scene: any, startPos: THREE.Vector3, targetPos: THREE.Vector3, game: any) {
     this.scene = scene;
     this.game = game;
     this.mesh = new THREE.Group();
 
-    // High tech rocket body mesh
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.32, 0.32, 2.2, 8),
-      new THREE.MeshStandardMaterial({ color: 0x1f2421, metalness: 0.9, roughness: 0.2 })
-    );
+    if (!PlayerRocket.sharedBodyGeo) {
+      PlayerRocket.sharedBodyGeo = new THREE.CylinderGeometry(0.32, 0.32, 2.2, 8);
+      PlayerRocket.sharedTipGeo = new THREE.ConeGeometry(0.34, 0.8, 8);
+      PlayerRocket.sharedGlowRingGeo = new THREE.TorusGeometry(0.35, 0.05, 8, 14);
+      PlayerRocket.sharedBodyMat = new THREE.MeshStandardMaterial({ color: 0x1f2421, metalness: 0.9, roughness: 0.2 });
+      PlayerRocket.sharedTipMat = new THREE.MeshBasicMaterial({ color: 0xff4400 });
+      PlayerRocket.sharedGlowRingMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    }
+
+    // High tech rocket body mesh using pooled assets
+    const body = new THREE.Mesh(PlayerRocket.sharedBodyGeo, PlayerRocket.sharedBodyMat);
     body.rotation.x = Math.PI / 2;
     this.mesh.add(body);
 
-    const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.34, 0.8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xff4400 })
-    );
+    const tip = new THREE.Mesh(PlayerRocket.sharedTipGeo, PlayerRocket.sharedTipMat);
     tip.rotation.x = Math.PI / 2;
     tip.position.z = 1.3;
     this.mesh.add(tip);
 
-    const glowRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.35, 0.05, 8, 14),
-      new THREE.MeshBasicMaterial({ color: 0xffaa00 })
-    );
+    const glowRing = new THREE.Mesh(PlayerRocket.sharedGlowRingGeo, PlayerRocket.sharedGlowRingMat);
     glowRing.position.z = 0.5;
     this.mesh.add(glowRing);
-
-    const light = new THREE.PointLight(0xff6600, 4.5, 30);
-    this.mesh.add(light);
 
     this.mesh.position.copy(startPos);
 
@@ -756,22 +761,25 @@ class PlayerRocket {
 // ================================================================
 class EnemyProjectile {
   [key: string]: any;
+  static sharedGeo: THREE.SphereGeometry | null = null;
+  static sharedMat: THREE.MeshBasicMaterial | null = null;
+
   constructor(scene, startPos, targetPos, game) {
     this.scene = scene;
     this.game = game;
     this.mesh = new THREE.Group();
 
-    const geo = new THREE.SphereGeometry(0.85, 8, 8);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
-    const orb = new THREE.Mesh(geo, mat);
-    this.mesh.add(orb);
+    if (!EnemyProjectile.sharedGeo) {
+      EnemyProjectile.sharedGeo = new THREE.SphereGeometry(0.85, 8, 8);
+      EnemyProjectile.sharedMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+    }
 
-    const light = new THREE.PointLight(0xff2200, 2.5, 18);
-    this.mesh.add(light);
+    const orb = new THREE.Mesh(EnemyProjectile.sharedGeo, EnemyProjectile.sharedMat);
+    this.mesh.add(orb);
 
     this.mesh.position.copy(startPos);
     this.dir = new THREE.Vector3().subVectors(targetPos, startPos).normalize();
-    this.speed = 115 + (this.game.gameLevel - 1) * 12; // speeds up with levels
+    this.speed = Math.min(200.0, 115 + (this.game.gameLevel - 1) * 4.5); // smoothly scales, capped at 200
     this.isDead = false;
     this.age = 0;
 
@@ -827,34 +835,162 @@ class Demon {
     this.game = game;
     this.mesh = new THREE.Group();
 
-    // Uniform physical scale: 16.0 for all enemies (doubled in size!)
-    this.enemyScale = 16.0;
+    // Dynamic enemy level assignment with tactical variety: scouts, standard, and elites
+    const baseLvl = this.game.gameLevel;
+    const rand = Math.random();
+    let lvl = baseLvl;
+    if (rand < 0.20 && baseLvl > 1) {
+      lvl = baseLvl - 1; // Scout Minion
+    } else if (rand > 0.85) {
+      lvl = baseLvl + 1; // Elite Brute
+    }
+    this.level = lvl;
+
+    // Smooth level-based enemy size progression (grows per level, capped at max titan size)
+    const baseEnemyScale = 14.0;
+    const scalePerLevel = 0.8;
+    const maxEnemyScale = 25.0; // Giant titan cap (approx ~1.8x height of Level 1)
+    this.enemyScale = Math.min(maxEnemyScale, baseEnemyScale + (lvl - 1) * scalePerLevel);
+
+    // Uniform 3D scalar scaling preserves exact proportions without stretching
     this.mesh.scale.setScalar(this.enemyScale / 3.0);
 
     const y = this.game.getHeightAt(x, z);
     this.mesh.position.set(x, y, z); // Stands directly on the ground
 
-    const lvlBonus = (this.game.gameLevel - 1);
+    const lvlBonus = (lvl - 1);
     const sizeFactor = this.enemyScale / 3.0;
 
     // Health scales with mass/volume (size^2) - Balanced so Level 1-10 enemies die in 3-5 pistol shots
-    this.health = (75 + lvlBonus * 25 + Math.random() * 15) * (this.enemyScale / 16.0);
+    this.maxHealth = Math.round((75 + lvlBonus * 25 + Math.random() * 15) * (this.enemyScale / 16.0));
+    this.health = this.maxHealth;
 
-    // Uniform speed (scaled by gameLevel brackets, capped below player's sprint speed of 110)
-    const lvl = this.game.gameLevel;
-    if (lvl <= 10) {
-      this.speed = 18.0 + (lvl - 1) * 1.5;
-    } else if (lvl <= 30) {
-      this.speed = 45.0 + (lvl - 11) * 1.25;
-    } else {
-      this.speed = Math.min(95.0, 75.0 + (lvl - 31) * 1.0);
-    }
+    // Balanced enemy speed: smooth gradual curve capped at max 48.0 (fair tactical pacing below player run speed 60.0)
+    const baseSpeed = 18.0;
+    const speedPerLevel = 0.85;
+    const maxEnemySpeed = 48.0;
+    this.speed = Math.min(maxEnemySpeed, baseSpeed + (lvl - 1) * speedPerLevel);
 
     this.isDead = false;
     this.lastAttackTime = 0;
 
     this.createModel();
+    this.createFloatingHeader();
     this.scene.add(this.mesh);
+  }
+
+  createFloatingHeader() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    this.headerCanvas = canvas;
+    this.headerCtx = ctx;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    this.headerTexture = texture;
+
+    const spriteMat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false
+    });
+    this.headerSpriteMat = spriteMat;
+
+    const sprite = new THREE.Sprite(spriteMat);
+    // Position floating directly above enemy head (scales with group size)
+    sprite.position.set(0, 7.3, 0);
+    sprite.scale.set(3.8, 1.425, 1.0);
+    this.mesh.add(sprite);
+    this.headerSprite = sprite;
+
+    this.updateFloatingHeader();
+  }
+
+  updateFloatingHeader() {
+    if (!this.headerCtx || !this.headerCanvas || !this.headerTexture) return;
+    const ctx = this.headerCtx;
+    const w = this.headerCanvas.width;
+    const h = this.headerCanvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Color theme based on level tier
+    let levelColor = '#00f0ff'; // Neon Cyan
+    let titleText = `LVL ${this.level} DEMON`;
+    if (this.level >= 10) {
+      levelColor = '#ff0055'; // Crimson Titan
+      titleText = `💀 LVL ${this.level} TITAN`;
+    } else if (this.level >= 7) {
+      levelColor = '#ff4d00'; // Molten Orange
+      titleText = `🔥 LVL ${this.level} BRUTE`;
+    } else if (this.level >= 4) {
+      levelColor = '#ffb700'; // Gold/Amber
+      titleText = `⚔️ LVL ${this.level} STALKER`;
+    }
+
+    // 1. Futuristic rounded badge container
+    ctx.fillStyle = 'rgba(6, 12, 24, 0.82)';
+    ctx.strokeStyle = levelColor;
+    ctx.lineWidth = 3;
+
+    // Draw rounded rect
+    const r = 12;
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(4, 4, w - 8, h - 8, r);
+    } else {
+      ctx.rect(4, 4, w - 8, h - 8);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    // 2. Level Badge Tag / Text
+    ctx.font = 'bold 22px "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = levelColor;
+    ctx.shadowColor = levelColor;
+    ctx.shadowBlur = 8;
+    ctx.fillText(titleText, w / 2, 28);
+    ctx.shadowBlur = 0; // reset shadow
+
+    // 3. Health Bar Background
+    const barX = 20;
+    const barY = 50;
+    const barW = w - 40;
+    const barH = 14;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // 4. Health Bar Fill
+    const healthRatio = Math.max(0, Math.min(1, this.health / (this.maxHealth || 100)));
+    const fillW = barW * healthRatio;
+
+    const hpColor = healthRatio > 0.6 ? '#00ff66' : (healthRatio > 0.25 ? '#ffcc00' : '#ff3333');
+    ctx.fillStyle = hpColor;
+    ctx.shadowColor = hpColor;
+    ctx.shadowBlur = 4;
+    ctx.fillRect(barX, barY, fillW, barH);
+    ctx.shadowBlur = 0;
+
+    // 5. Border around Health Bar
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    // 6. Numeric HP text
+    ctx.font = 'bold 12px "Segoe UI", Roboto, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${Math.ceil(Math.max(0, this.health))} / ${Math.ceil(this.maxHealth || 100)} HP`, w / 2, 78);
+
+    this.headerTexture.needsUpdate = true;
   }
 
   createModel() {
@@ -898,11 +1034,11 @@ class Demon {
         if ((child as any).isBone) {
           const bone = child as THREE.Bone;
           const boneName = bone.name.toLowerCase();
-          
+
           let geo = null;
           let offset = new THREE.Vector3();
           let boneType = '';
-          
+
           if (boneName.includes('head') && !boneName.includes('end')) {
             // Calibrated Head hitbox: tight sphere aligned with head bone
             geo = new THREE.SphereGeometry(0.35, 8, 8);
@@ -924,14 +1060,14 @@ class Demon {
             const hitMat = new THREE.MeshBasicMaterial({ visible: false });
             const hitMesh = new THREE.Mesh(geo, hitMat);
             hitMesh.position.copy(offset);
-            
+
             // Tag it so raycaster results know what bone was hit
-            hitMesh.userData = { 
-              isDemonHitBox: true, 
-              parentDemon: this, 
-              boneType: boneType 
+            hitMesh.userData = {
+              isDemonHitBox: true,
+              parentDemon: this,
+              boneType: boneType
             };
-            
+
             bone.add(hitMesh);
             this.boneHitBoxes.push(hitMesh);
           }
@@ -1040,6 +1176,8 @@ class Demon {
 
     if (this.health <= 0) {
       this.die(hitPoint);
+    } else {
+      this.updateFloatingHeader();
     }
   }
 
@@ -1047,6 +1185,11 @@ class Demon {
     this.isDead = true;
     this.deathTimer = 0;
     this.deathComplete = false;
+
+    // Hide floating level badge on death
+    if (this.headerSprite) {
+      this.headerSprite.visible = false;
+    }
 
     this.game.createExplosionParticles(this.mesh.position);
     this.game.playExplosionSound();
@@ -1086,6 +1229,22 @@ class Demon {
     }
   }
 
+  destroy() {
+    this.scene.remove(this.mesh);
+    if (this._glowMatInstance) {
+      this._glowMatInstance.dispose();
+      this._glowMatInstance = null;
+    }
+    if (this.headerTexture) {
+      this.headerTexture.dispose();
+      this.headerTexture = null;
+    }
+    if (this.headerSpriteMat) {
+      this.headerSpriteMat.dispose();
+      this.headerSpriteMat = null;
+    }
+  }
+
   update(dt, playerPos) {
     if (this.isDead) {
       if (this.deathComplete) return;
@@ -1097,7 +1256,7 @@ class Demon {
 
       // Smoothly tilt 90 degrees forward to face-plant on the ground
       this.mesh.rotation.x = THREE.MathUtils.lerp(0, -Math.PI / 2, Math.min(1.0, this.deathTimer / 0.8));
-      
+
       // Sink slightly so it lies flat on the terrain surface
       const targetY = this.game.getHeightAt(this.mesh.position.x, this.mesh.position.z) - (this.enemyScale * 0.18);
       this.mesh.position.y = THREE.MathUtils.lerp(this.mesh.position.y, targetY, Math.min(1.0, this.deathTimer / 0.8));
@@ -1123,11 +1282,7 @@ class Demon {
       // Cleanup and remove from scene after death animation finishes
       if (this.deathTimer >= 1.8) {
         this.deathComplete = true;
-        this.scene.remove(this.mesh);
-        if (this._glowMatInstance) {
-          this._glowMatInstance.dispose();
-          this._glowMatInstance = null;
-        }
+        this.destroy();
       }
       return;
     }
@@ -1135,25 +1290,68 @@ class Demon {
     // Update animated skeleton
     if (this.mixer) this.mixer.update(dt);
 
-    const toPlayer = new THREE.Vector3().subVectors(playerPos, this.mesh.position);
-    const dist = toPlayer.length();
+    // Zero-GC pure scalar distance & direction calculations (eliminates frame stutter)
+    const toPlayerX = playerPos.x - this.mesh.position.x;
+    const toPlayerZ = playerPos.z - this.mesh.position.z;
+    const distSq = toPlayerX * toPlayerX + toPlayerZ * toPlayerZ;
 
     // Check if punch action is playing to avoid interrupting it
     const punchAction = this.animations ? this.animations['Punch'] : null;
     const isPunching = punchAction && punchAction.isRunning();
 
-    if (dist < 280) {
-      const targetAngle = Math.atan2(toPlayer.x, toPlayer.z);
+    // Skip if outside 280 units (280^2 = 78400)
+    if (distSq < 78400) {
+      const dist = Math.sqrt(distSq);
+      const targetAngle = Math.atan2(toPlayerX, toPlayerZ);
       this.mesh.rotation.y = targetAngle;
 
       const touchDist = 4.0 + (this.enemyScale * 0.45); // touch contact boundary based on size
 
-      if (dist > touchDist) {
-        // Move towards player
-        toPlayer.y = 0;
-        toPlayer.normalize();
-        this.mesh.position.x += toPlayer.x * this.speed * dt;
-        this.mesh.position.z += toPlayer.z * this.speed * dt;
+      if (dist > touchDist && dist > 0.001) {
+        // Normalize direction towards player
+        let moveDirX = toPlayerX / dist;
+        let moveDirZ = toPlayerZ / dist;
+
+        // Check nearby alive demon allies to spread out & prevent gang clustering (Zero-GC)
+        let closeAlliesCount = 0;
+        let repX = 0;
+        let repZ = 0;
+
+        const allDemons = this.game.demons;
+        if (allDemons) {
+          const myX = this.mesh.position.x;
+          const myZ = this.mesh.position.z;
+          for (let i = 0; i < allDemons.length; i++) {
+            const ally = allDemons[i];
+            if (ally === this || ally.isDead || !ally.mesh) continue;
+
+            const dx = myX - ally.mesh.position.x;
+            const dz = myZ - ally.mesh.position.z;
+            const dSq = dx * dx + dz * dz;
+
+            if (dSq < 676 && dSq > 0.01) { // 26^2 = 676
+              closeAlliesCount++;
+              const dAlly = Math.sqrt(dSq);
+              const pushStrength = (1.0 - dAlly / 26.0);
+              repX += (dx / dAlly) * pushStrength;
+              repZ += (dz / dAlly) * pushStrength;
+            }
+          }
+        }
+
+        // If >= 2 allies are already clustered nearby (forming a 3-enemy group), fan out / flank laterally
+        if (closeAlliesCount >= 2) {
+          moveDirX = moveDirX * 0.55 + repX * 0.85;
+          moveDirZ = moveDirZ * 0.55 + repZ * 0.85;
+          const len = Math.sqrt(moveDirX * moveDirX + moveDirZ * moveDirZ);
+          if (len > 0.001) {
+            moveDirX /= len;
+            moveDirZ /= len;
+          }
+        }
+
+        this.mesh.position.x += moveDirX * this.speed * dt;
+        this.mesh.position.z += moveDirZ * this.speed * dt;
         this.mesh.position.y = this.game.getHeightAt(this.mesh.position.x, this.mesh.position.z);
 
         if (!isPunching) {
@@ -1163,7 +1361,7 @@ class Demon {
             if (this.mixer) this.mixer.timeScale = 1.0;
           } else {
             this.fadeToAction('Running', 0.2);
-            if (this.mixer) this.mixer.timeScale = lvl > 30 ? 1.5 : 1.0;
+            if (this.mixer) this.mixer.timeScale = lvl > 20 ? 1.1 : 1.0;
           }
         }
       } else {
@@ -1577,12 +1775,16 @@ class Game {
     this.footstepPhase = 0;             // phase for footstep camera bob
 
     // ---- State ----
+    const savedQuality = localStorage.getItem('tactical_quality');
+    this.graphicsQuality = savedQuality || (this.isMobile ? 'low' : 'medium');
     this.chunks = new Map();
     this.demons = [];
     this.enemyProjectiles = [];
     this.playerRockets = [];
     this.keys = {};
     this.isLocked = false;
+    this.isMobile = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 1024);
+    if (this.isMobile) document.body.classList.add('is-mobile');
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
     this.onGround = true;
@@ -1590,6 +1792,7 @@ class Game {
     this.fpsSamples = [];
     this.fogLayers = [];
     this.landscapeTexture = null;
+    this.isContextLost = false;
 
     // ---- Dynamic Weather System ----
     this.weatherState = 'clear';   // 'clear' | 'rain' | 'snow'
@@ -1640,9 +1843,19 @@ class Game {
     this.weaponLevel = 1;
     this.ammo = 15;
     this.maxAmmo = 15;
-    this.reserveAmmo = 0;
+    this.reserveAmmo = 999;
     this.isReloading = false;
+    this.isSprintLocked = false;
     this.playerDead = false;
+    this.gyroEnabled = true;
+    this.gyroListening = false;
+    this.gyroPermissionGranted = false;
+    this.gyroLastTime = 0;
+    this.gyroSmoothPitchRate = 0;
+    this.gyroSmoothYawRate = 0;
+    this.gyroPrevBeta = null;
+    this.gyroPrevGamma = null;
+    this.gyroPrevAlpha = null;
     this.lastSecondaryTime = 0;
     this.lastAimTime = 0;
     this.lastRailgunFireTime = 0;        // 1-second cooldown timestamp after railgun blast
@@ -1671,11 +1884,11 @@ class Game {
     this.draggedItem = null;
     this.draggedFromSlot = -1;
     this.inventory = [
-      { id: 'pistol', name: 'Pistol', image: '/assets/weapons/skin/pistol.png', type: 'weapon', equipped: true, clip: 15, maxClip: 15, reserve: 0 },
-      { id: 'smg', name: 'SMG', image: '/assets/weapons/skin/smg.png', type: 'weapon', equipped: true, clip: 30, maxClip: 30, reserve: 0 },
-      { id: 'railgun', name: 'Railgun', image: '/assets/weapons/skin/railgun.png', type: 'weapon', equipped: true, clip: 3, maxClip: 3, reserve: 0 },
-      { id: 'ak47', name: 'AK-47', image: '/assets/weapons/skin/ak47.png', type: 'weapon', equipped: true, clip: 30, maxClip: 30, reserve: 0 },
-      { id: 'rocket', name: 'Rocket Launcher', image: '/assets/weapons/skin/rocket.png', type: 'weapon', equipped: true, clip: 1, maxClip: 1, reserve: 0 }
+      { id: 'pistol', name: 'Pistol', image: '/assets/weapons/skin/pistol.png', type: 'weapon', equipped: true, maxClip: 15, clip: 15, reserve: 999 },
+      { id: 'smg', name: 'SMG', image: '/assets/weapons/skin/smg.png', type: 'weapon', equipped: true, maxClip: 30, clip: 30, reserve: 999 },
+      { id: 'railgun', name: 'Railgun', image: '/assets/weapons/skin/railgun.png', type: 'weapon', equipped: true, maxClip: 3, clip: 3, reserve: 999 },
+      { id: 'ak47', name: 'AK-47', image: '/assets/weapons/skin/ak47.png', type: 'weapon', equipped: true, maxClip: 30, clip: 30, reserve: 999 },
+      { id: 'rocket', name: 'Rocket Launcher', image: '/assets/weapons/skin/rocket.png', type: 'weapon', equipped: true, maxClip: 1, clip: 1, reserve: 999 }
     ];
     this.activeSlot = 0;
     this.groundItems = [];
@@ -1748,7 +1961,11 @@ class Game {
 
   stopAutomaticFireEffects() {
     if (this.activeShootSound) {
-      try { this.activeShootSound.source.stop(); } catch (e) { }
+      try {
+        if (this.activeShootSound.source) {
+          this.activeShootSound.source.stop();
+        }
+      } catch (e) { }
       this.activeShootSound = null;
     }
     this.stopRailgunChargeSound();
@@ -1807,11 +2024,17 @@ class Game {
     }
 
     try {
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      const useAntialias = !this.isMobile; // Disabling MSAA on mobile saves >60% GPU RAM preventing Safari WebKit crashes
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: useAntialias,
+        powerPreference: this.isMobile ? 'default' : 'high-performance',
+        alpha: false,
+        stencil: false
+      });
     } catch (e) {
       console.warn("Failed to initialize WebGLRenderer with high-performance. Trying default power preference...", e);
       try {
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: false });
       } catch (err) {
         console.error("Failed to initialize WebGLRenderer:", err);
         const errorDiv = document.createElement('div');
@@ -1853,6 +2076,27 @@ class Game {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     document.body.appendChild(this.renderer.domElement);
 
+    // Safari WebKit Context Loss & Recovery Guard (Prevents "A problem repeatedly occurred")
+    const canvasEl = this.renderer.domElement;
+    canvasEl.addEventListener('webglcontextlost', (e: Event) => {
+      e.preventDefault(); // CRITICAL for Safari: tells WebKit not to crash/reload the page
+      console.warn('[WebGL] Context lost detected. Safely pausing render frame.');
+      this.isContextLost = true;
+    }, false);
+
+    canvasEl.addEventListener('webglcontextrestored', () => {
+      console.log('[WebGL] Context successfully restored. Resuming render loop.');
+      this.isContextLost = false;
+      if (this.renderer) {
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    }, false);
+
+    // Cleanup GPU resources cleanly on soft refresh or page navigation
+    window.addEventListener('pagehide', () => {
+      this.stopAutomaticFireEffects();
+    });
+
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.mapConfig.weather.clear.skyColor);
     this.scene.fog = new THREE.FogExp2(this.mapConfig.fogColor, this.mapConfig.fogDensity * 0.15);
@@ -1879,7 +2123,7 @@ class Game {
 
     this.updateLoadingProgress(75, "Instantiating 3D character & weapon armatures...");
     this.createRobot();
-    
+
     // Progressive load: only generate the immediate 3x3 chunks during loading screen,
     // and let the remaining chunks generate smoothly in the background when the game starts.
     const originalRadius = this.viewRadius;
@@ -2029,7 +2273,7 @@ class Game {
       // Download all models concurrently in parallel (massively speeds up load time!)
       let loadedCount = 0;
       const totalModels = urls.length;
-      
+
       const promises = urls.map(url => {
         return loadGLTF(url).then(res => {
           loadedCount++;
@@ -2132,7 +2376,7 @@ class Game {
     }
 
     const sunGroup = new THREE.Group();
-    
+
     // Core glowing solar orb (depthTest: false ensures it's always visible in skybox)
     const sunGeo = new THREE.SphereGeometry(120, 32, 32);
     const sunMat = new THREE.MeshBasicMaterial({
@@ -2819,7 +3063,7 @@ class Game {
       gltf.animations.forEach(clip => {
         const name = clip.name.toLowerCase();
         const action = this.mixer.clipAction(clip);
-        
+
         if (name === 'idle') {
           this.animations['Idle'] = action;
         } else if (name === 'walk') {
@@ -2831,7 +3075,7 @@ class Game {
           this.animations['ThumbsUp'] = action;
           this.animations['Sitting'] = action; // Fallback for dying pose
         }
-        
+
         this.animations[clip.name] = action;
       });
 
@@ -2983,6 +3227,12 @@ class Game {
     this.reloadTimerStart = Date.now();
     this.playReloadSound();
 
+    const btnReload = document.getElementById('btn-mobile-reload');
+    if (btnReload) {
+      btnReload.classList.add('reloading');
+      setTimeout(() => btnReload.classList.remove('reloading'), 1300);
+    }
+
     const ammoDisp = document.getElementById('ammo-display');
     if (ammoDisp) ammoDisp.textContent = "RELOADING...";
 
@@ -3001,12 +3251,9 @@ class Game {
   updateAmmoDisplay() {
     const activeItem = this.inventory[this.activeSlot];
     if (activeItem && activeItem.type === 'weapon') {
-      this.ammo = activeItem.clip !== undefined ? activeItem.clip : this.maxAmmo;
-      this.reserveAmmo = activeItem.reserve !== undefined ? activeItem.reserve : 0;
-      const ammoDisp = document.getElementById('ammo-display');
-      if (ammoDisp && !this.isReloading) {
-        ammoDisp.textContent = `Ammo: ${this.ammo} / ${this.reserveAmmo}`;
-      }
+      activeItem.clip = this.ammo;
+      activeItem.reserve = this.reserveAmmo;
+      this.updateInventoryUI();
     }
   }
 
@@ -3032,7 +3279,7 @@ class Game {
     }
   }
 
-  playLaserSound(level) {
+  playLaserSound(level: number) {
     if (level === 1) {
       this.playSoundBuffer('pistol', false, 0.55);
     } else if (level === 2) {
@@ -3884,20 +4131,34 @@ class Game {
       livesEl.textContent = this.lives > 0 ? "❤️".repeat(this.lives) : "NONE";
     }
 
+    // Auto-peek docked mobile HUD on taking damage so player always sees their HP
+    if (this.isMobile && this.isHudDocked && amount > 0) {
+      const infoPanel = document.getElementById('info-panel');
+      if (infoPanel) {
+        infoPanel.classList.add('is-peeking');
+        if (this.hudPeekTimeout) clearTimeout(this.hudPeekTimeout);
+        this.hudPeekTimeout = setTimeout(() => {
+          if (infoPanel && this.isHudDocked) {
+            infoPanel.classList.remove('is-peeking');
+          }
+        }, 2500);
+      }
+    }
+
     if (this.health <= 0) {
       if (this.lives > 1) {
         this.lives--;
         this.health = 100;
         this.playHealSound();
         this.showQuickBanner(`RESPAWNED! LIVES LEFT: ${this.lives}`);
-        
+
         // Squeezed upward spawn coordinate
         const rp = this.robotGroup.position;
         const spawnY = this.getHeightAt(rp.x, rp.z);
         rp.y = spawnY + 15.0;
         this.velocity.set(0, 0, 0);
         this.onGround = false;
-        
+
         this.damagePlayer(0);
       } else {
         this.lives = 0;
@@ -3910,20 +4171,113 @@ class Game {
   die() {
     this.playerDead = true;
     this.fadeToAction('Sitting', 0.5);
+    this.stopAutomaticFireEffects();
 
-    const blocker = document.getElementById('blocker');
-    const header = blocker.querySelector('h1');
-    const sub = blocker.querySelector('.subtitle');
+    if (document.exitPointerLock) {
+      try { document.exitPointerLock(); } catch (e) { }
+    }
+    document.body.classList.add('pointer-unlocked');
+    document.body.classList.remove('in-game');
+
+    // Update Game Over Modal Stats
+    const goModal = document.getElementById('game-over-modal');
+    const goLevel = document.getElementById('go-level');
+    const goKills = document.getElementById('go-kills');
+    const goScore = document.getElementById('go-score');
+
+    if (goLevel) goLevel.textContent = `${this.gameLevel}`;
+    if (goKills) goKills.textContent = `${this.kills}`;
+    if (goScore) goScore.textContent = `${this.points}`;
+
+    if (goModal) {
+      goModal.classList.add('active');
+      goModal.style.display = 'flex';
+    }
+
+    const hud = document.getElementById('hud');
+    if (hud) hud.style.display = 'none';
+
+    this.playPlayerHitSound();
+  }
+
+  restartGame() {
+    const goModal = document.getElementById('game-over-modal');
+    if (goModal) {
+      goModal.classList.remove('active');
+      goModal.style.display = 'none';
+    }
+
+    const bEl = document.getElementById('blocker');
+    if (bEl) bEl.style.display = 'none';
+
+    const hudEl = document.getElementById('hud');
+    if (hudEl) hudEl.style.display = 'block';
+
+    this.respawn();
+
+    // Sky drop spawn
+    const rp = this.robotGroup.position;
+    const spawnY = this.getHeightAt(0, 0);
+    rp.set(0, spawnY + 40.0, 0);
+    this.velocity.set(0, -35.0, 0);
+    this.onGround = false;
+    this.prevOnGround = false;
+    this.prevVelocityY = -35.0;
+
+    if (this.isMobile) {
+      this.isLocked = true;
+      document.body.classList.remove('pointer-unlocked');
+      document.body.classList.add('in-game');
+    } else {
+      const canvas = this.renderer.domElement;
+      if (canvas.requestPointerLock) {
+        try { canvas.requestPointerLock(); } catch (e) { }
+      }
+    }
+  }
+
+  pauseGame() {
+    if (this.playerDead) return;
+    this.isLocked = false;
+    if (document.exitPointerLock) {
+      try { document.exitPointerLock(); } catch (e) { }
+    }
+    document.body.classList.add('pointer-unlocked');
+    document.body.classList.remove('in-game');
+    this.mouseLeftDown = false;
+    this.stopAutomaticFireEffects();
+
     const deployText = document.getElementById('deploy-text');
-    const deployIcon = document.getElementById('deploy-icon-elem');
+    if (deployText && !this.playerDead) {
+      deployText.textContent = "RESUME";
+    }
 
-    if (header) header.textContent = "SYSTEM TERMINATED";
-    if (sub) sub.textContent = `You reached Level ${this.gameLevel} | Kills: ${this.kills} | Points: ${this.points}`;
-    if (deployText) deployText.textContent = "RESPAWN";
-    if (deployIcon) deployIcon.textContent = "▶";
+    const bEl = document.getElementById('blocker');
+    const hudEl = document.getElementById('hud');
+    if (bEl) bEl.style.display = 'flex';
+    if (hudEl) hudEl.style.display = 'none';
+  }
 
-    blocker.style.background = "rgba(40, 10, 10, 0.5)";
-    document.exitPointerLock();
+  returnToMenu() {
+    const goModal = document.getElementById('game-over-modal');
+    if (goModal) {
+      goModal.classList.remove('active');
+      goModal.style.display = 'none';
+    }
+
+    this.playerDead = false;
+    this.isLocked = false;
+    document.body.classList.add('pointer-unlocked');
+    document.body.classList.remove('in-game');
+
+    const deployText = document.getElementById('deploy-text');
+    if (deployText) deployText.textContent = "DEPLOY";
+
+    const bEl = document.getElementById('blocker');
+    if (bEl) bEl.style.display = 'flex';
+
+    const hudEl = document.getElementById('hud');
+    if (hudEl) hudEl.style.display = 'none';
   }
 
   respawn() {
@@ -3937,6 +4291,17 @@ class Game {
     this.maxAmmo = 20;
     this.ammo = 20;
     this.isReloading = false;
+
+    // Reset Inventory to initial pistol
+    this.inventory = [
+      { id: 'pistol', name: 'Pistol', image: '/assets/weapons/skin/pistol.png', type: 'weapon', equipped: true, maxClip: 15, clip: 15, reserve: 999 },
+      { id: 'smg', name: 'SMG', image: '/assets/weapons/skin/smg.png', type: 'weapon', equipped: true, maxClip: 30, clip: 30, reserve: 180 },
+      { id: 'railgun', name: 'Railgun', image: '/assets/weapons/skin/railgun.png', type: 'weapon', equipped: true, maxClip: 3, clip: 3, reserve: 20 },
+      { id: 'ak47', name: 'AK-47', image: '/assets/weapons/skin/ak47.png', type: 'weapon', equipped: true, maxClip: 30, clip: 30, reserve: 150 },
+      { id: 'rocket', name: 'Rocket Launcher', image: '/assets/weapons/skin/rocket.png', type: 'weapon', equipped: true, maxClip: 1, clip: 1, reserve: 5 }
+    ];
+    this.activeSlot = 0;
+    this.updateInventoryUI();
 
     // Reset AAA state
     this.isADS = false;
@@ -3959,9 +4324,15 @@ class Game {
     const lvlDisp = document.getElementById('level-display');
     if (lvlDisp) lvlDisp.textContent = "Level 1";
 
+    const scoreDisp = document.getElementById('score-display');
+    if (scoreDisp) scoreDisp.textContent = "Points: 0";
+
+    const killsDisp = document.getElementById('kills-display');
+    if (killsDisp) killsDisp.textContent = "Kills: 0";
+
     const blocker = document.getElementById('blocker');
-    const header = blocker.querySelector('h1');
-    const sub = blocker.querySelector('.subtitle');
+    const header = blocker ? blocker.querySelector('h1') : null;
+    const sub = blocker ? blocker.querySelector('.subtitle') : null;
     const deployText = document.getElementById('deploy-text');
     const deployIcon = document.getElementById('deploy-icon-elem');
 
@@ -3979,12 +4350,7 @@ class Game {
     this.prevVelocityY = -35.0;
 
     this.demons.forEach(d => {
-      this.scene.remove(d.mesh);
-      // Only dispose cloned materials, not shared pool geometries
-      if (d._glowMatInstance) {
-        d._glowMatInstance.dispose();
-        d._glowMatInstance = null;
-      }
+      d.destroy();
     });
     this.demons = [];
 
@@ -4053,11 +4419,7 @@ class Game {
       const dcz = Math.floor((d.mesh.position.z + size / 2) / size);
       const key = `${dcx},${dcz}`;
       if (!this.activeKeys.has(key)) {
-        this.scene.remove(d.mesh);
-        if (d._glowMatInstance) {
-          d._glowMatInstance.dispose();
-          d._glowMatInstance = null;
-        }
+        d.destroy();
         return false;
       }
       return true;
@@ -4070,39 +4432,81 @@ class Game {
     return 8;
   }
 
-  // GUARANTEED FRONT SPAWNING: Spawns demons in front of the player
+  // GUARANTEED FRONT SPAWNING: Spawns demons in front of the player (Strictly capped at max 10 alive enemies)
   spawnDemonInFront() {
     if (!this.robotGroup || this.playerDead) return;
+
+    // Hard global limit: strictly max 10 alive enemies at any time across all levels (Zero-GC loop)
+    let aliveCount = 0;
+    const demonsList = this.demons;
+    for (let i = 0; i < demonsList.length; i++) {
+      if (!demonsList[i].isDead) aliveCount++;
+    }
+    const MAX_ALIVE_DEMONS = Math.min(10, this.maxDemons || 10);
+    if (aliveCount >= MAX_ALIVE_DEMONS) return;
 
     const rp = this.robotGroup.position;
     this.camera.getWorldDirection(this._vecForward);
     this._vecForward.y = 0;
     this._vecForward.normalize();
 
-    const maxDemons = 6 + (this.gameLevel - 1) * 3;
-    if (this.demons.length >= maxDemons) return;
-
-    // Spawn within ±45° of the player's forward direction
-    const angleOffset = (Math.random() - 0.5) * 1.5; // ~±43°
     const baseAngle = Math.atan2(this._vecForward.x, this._vecForward.z);
-    const spawnAngle = baseAngle + angleOffset;
-    const spawnDist = 120 + Math.random() * 100;
 
-    const rx = rp.x + Math.sin(spawnAngle) * spawnDist;
-    const rz = rp.z + Math.cos(spawnAngle) * spawnDist;
+    // Try candidate spawn positions to ensure no more than 3 enemies cluster together
+    let bestX = null;
+    let bestZ = null;
+    let minNearbyCount = Infinity;
 
-    const demon = new Demon(this.scene, rx, rz, this);
-    this.demons.push(demon);
+    for (let attempt = 0; attempt < 8; attempt++) {
+      // Fan out between ±75° in front of the player
+      const angleOffset = (Math.random() - 0.5) * 2.6;
+      const spawnAngle = baseAngle + angleOffset;
+      const spawnDist = 110 + Math.random() * 80;
+
+      const candX = rp.x + Math.sin(spawnAngle) * spawnDist;
+      const candZ = rp.z + Math.cos(spawnAngle) * spawnDist;
+
+      // Count how many alive enemies are within 45 units of this candidate spot (45^2 = 2025)
+      let nearbyCount = 0;
+      for (let i = 0; i < demonsList.length; i++) {
+        const d = demonsList[i];
+        if (d.isDead || !d.mesh) continue;
+        const dx = d.mesh.position.x - candX;
+        const dz = d.mesh.position.z - candZ;
+        if (dx * dx + dz * dz < 2025) {
+          nearbyCount++;
+        }
+      }
+
+      // Found an open sector with < 3 enemies in the gang
+      if (nearbyCount < 3) {
+        bestX = candX;
+        bestZ = candZ;
+        minNearbyCount = nearbyCount;
+        break;
+      }
+
+      if (nearbyCount < minNearbyCount) {
+        minNearbyCount = nearbyCount;
+        bestX = candX;
+        bestZ = candZ;
+      }
+    }
+
+    if (bestX !== null && bestZ !== null && minNearbyCount < 3) {
+      const demon = new Demon(this.scene, bestX, bestZ, this);
+      this.demons.push(demon);
+    }
   }
 
-  // Continuous enemy spawning on a timer — independent of chunk loading
+  // Continuous enemy spawning on a timer — with cooldown after enemy deaths
   updateEnemySpawning(dt) {
     if (this.playerDead || !this.isLocked) return;
 
     this.enemySpawnTimer += dt;
 
-    // Spawn rate increases with level: faster at higher levels
-    const interval = Math.max(1.5, this.enemySpawnInterval - (this.gameLevel - 1) * 0.3);
+    // Measured respawn pacing: controlled cooldown so killed enemies are replaced after a few seconds
+    const interval = Math.max(2.5, this.enemySpawnInterval || 3.5);
 
     if (this.enemySpawnTimer >= interval) {
       this.enemySpawnTimer = 0;
@@ -4171,6 +4575,60 @@ class Game {
 
   updateRainParticles(dt) {
     // Disabled
+  }
+
+  setGraphicsQuality(quality: string) {
+    this.graphicsQuality = quality;
+    try {
+      localStorage.setItem('tactical_quality', quality);
+    } catch (e) { }
+
+    // Native resolution according to device (no blurry downsampling)
+    const nativeRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    let shadowSize = 1024;
+
+    if (quality === 'low') {
+      shadowSize = 512;
+      this.enemySpawnInterval = 4.5;
+      this.treeStep = 90;
+      this.coverStep = 240;
+      this.maxDemons = 6;
+    } else if (quality === 'medium') {
+      shadowSize = 1024;
+      this.enemySpawnInterval = 3.5;
+      this.treeStep = 50;
+      this.coverStep = 140;
+      this.maxDemons = 8;
+    } else {
+      shadowSize = 2048;
+      this.enemySpawnInterval = 3.0;
+      this.treeStep = 35;
+      this.coverStep = 90;
+      this.maxDemons = 10;
+    }
+
+    if (this.renderer) {
+      this.renderer.setPixelRatio(nativeRatio);
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      if (this.sun && this.sun.shadow) {
+        this.sun.shadow.mapSize.width = shadowSize;
+        this.sun.shadow.mapSize.height = shadowSize;
+        if (this.sun.shadow.map) {
+          this.sun.shadow.map.dispose();
+          this.sun.shadow.map = null;
+        }
+      }
+    }
+
+    // Update UI buttons
+    const qualityBtns = document.querySelectorAll('.quality-btn');
+    qualityBtns.forEach(btn => {
+      if ((btn as HTMLElement).dataset.quality === quality) {
+        btn.classList.add('selected');
+      } else {
+        btn.classList.remove('selected');
+      }
+    });
   }
 
   changeMap(mapId: string) {
@@ -4319,6 +4777,7 @@ class Game {
     const blocker = document.getElementById('blocker');
 
     const enterImmersiveGame = () => {
+      this.requestGyroPermission();
       const deployTextEl = document.getElementById('deploy-text');
       const isFreshDeploy = deployTextEl && (deployTextEl.textContent === 'DEPLOY' || deployTextEl.textContent === 'RESPAWN');
 
@@ -4331,7 +4790,7 @@ class Game {
       const selectedMapId = selectedCard ? (selectedCard as HTMLElement).dataset.map || 'arctic' : 'arctic';
       if (selectedMapId !== this.mapId) {
         this.changeMap(selectedMapId);
-      } else if (isFreshDeploy) {
+      } else if (isFreshDeploy && this.robotGroup) {
         // If map didn't change but it is a fresh deploy, trigger the sky drop entrance
         const spawnY = this.getHeightAt(0, 0);
         this.robotGroup.position.set(0, spawnY + 40.0, 0);
@@ -4341,208 +4800,668 @@ class Game {
         this.prevVelocityY = -35.0;
       }
 
-      // Request Fullscreen Mode to prevent mouse escaping window borders during high movement
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => { });
+      // Enter gameplay state immediately
+      this.isLocked = true;
+      document.body.classList.remove('pointer-unlocked');
+      document.body.classList.add('in-game');
+
+      const bEl = document.getElementById('blocker');
+      const hudEl = document.getElementById('hud');
+      if (bEl) bEl.style.display = 'none';
+      if (hudEl) hudEl.style.display = 'block';
+
+      const goModal = document.getElementById('game-over-modal');
+      if (goModal) {
+        goModal.classList.remove('active');
+        goModal.style.display = 'none';
       }
 
-      // Request Pointer Lock
-      if (canvas.requestPointerLock) {
+      if (this.isMobile) {
+        document.body.classList.add('is-mobile');
         try {
-          canvas.requestPointerLock();
+          const orientation = screen.orientation as any;
+          if (orientation && typeof orientation.lock === 'function') {
+            orientation.lock('landscape').catch(() => { });
+          }
         } catch (e) { }
+      } else {
+        // Desktop: Request Fullscreen and Pointer Lock
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => { });
+        }
+        if (canvas.requestPointerLock) {
+          try {
+            canvas.requestPointerLock();
+          } catch (e) { }
+        }
       }
     };
 
-    if (blocker) {
-      blocker.addEventListener('click', enterImmersiveGame);
-    }
-
-    // Re-acquire lock if user clicks on canvas during gameplay
-    canvas.addEventListener('click', () => {
-      if (!this.isLocked && !this.playerDead) {
-        enterImmersiveGame();
-      }
-    });
-
+    // Desktop Pointer Lock State Change Listeners
     document.addEventListener('pointerlockchange', () => {
-      this.isLocked = document.pointerLockElement === canvas;
-      const bEl = document.getElementById('blocker');
-      const hudEl = document.getElementById('hud');
-      if (bEl) bEl.style.display = this.isLocked ? 'none' : 'flex';
-      if (hudEl) hudEl.style.display = this.isLocked ? 'block' : 'none';
-
-      const deployText = document.getElementById('deploy-text');
-
-      if (this.isLocked) {
+      if (document.pointerLockElement === canvas) {
+        this.isLocked = true;
         document.body.classList.remove('pointer-unlocked');
         document.body.classList.add('in-game');
+        if (blocker) blocker.style.display = 'none';
+        const hud = document.getElementById('hud');
+        if (hud) hud.style.display = 'block';
       } else {
-        document.body.classList.add('pointer-unlocked');
-        document.body.classList.remove('in-game');
-        this.mouseLeftDown = false;
-        this.stopAutomaticFireEffects();
-
-        if (deployText && !this.playerDead) {
-          deployText.textContent = "RESUME";
+        if (!this.playerDead && !this.isMobile) {
+          this.pauseGame();
         }
       }
     });
 
-    document.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
+    document.addEventListener('pointerlockerror', (e) => {
+      console.warn('Pointer lock error/cancelled:', e);
     });
 
-    document.addEventListener('mousemove', e => {
-      if (!this.isLocked) {
-        this.virtualCursorX = e.clientX;
-        this.virtualCursorY = e.clientY;
+    // ==============================================================
+    //  DESKTOP KEYBOARD, MOUSE LOOK & WEAPON CONTROLS
+    // ==============================================================
+    window.addEventListener('keydown', (e) => {
+      // Allow pause/resume toggling via P or Escape
+      if (e.code === 'KeyP' || e.code === 'Escape') {
+        if (this.isLocked) {
+          this.pauseGame();
+        }
         return;
       }
 
-      if (Math.abs(e.movementX) > 150 || Math.abs(e.movementY) > 150) return;
+      if (!this.isLocked || this.playerDead) return;
 
-      // Smooth, responsive sensitivity (balanced for Hipfire and ADS)
-      const baseSensitivity = 0.0025;
-      const sensitivity = baseSensitivity * (1.0 - this.adsBlend * 0.3);
+      this.keys[e.code] = true;
+
+      // Weapon reload
+      if (e.code === 'KeyR') {
+        this.reloadWeapon();
+      } else if (e.code === 'KeyQ') {
+        // Quick rocket hotkey
+        this.useInventoryItem(4);
+      } else if (e.code === 'Digit1') {
+        this.useInventoryItem(0);
+      } else if (e.code === 'Digit2') {
+        this.useInventoryItem(1);
+      } else if (e.code === 'Digit3') {
+        this.useInventoryItem(2);
+      } else if (e.code === 'Digit4') {
+        this.useInventoryItem(3);
+      } else if (e.code === 'Digit5') {
+        this.useInventoryItem(4);
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      this.keys[e.code] = false;
+    });
+
+    // Mouse Look (First-Person Camera Movement)
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isLocked || this.playerDead) return;
+
+      const baseSensitivity = 0.0022;
+      const sensitivity = baseSensitivity * (1.0 - this.adsBlend * 0.4);
+
       this.camYaw -= e.movementX * sensitivity;
       this.camPitch = THREE.MathUtils.clamp(
         this.camPitch - e.movementY * sensitivity,
-        -1.35,  // Full look-down freedom (~77 degrees)
-        1.35    // Full look-up freedom (~77 degrees)
+        -1.35,
+        1.35
       );
-
-      // Keep virtual cursor centered for HUD/reticle alignment
-      this.virtualCursorX = window.innerWidth / 2;
-      this.virtualCursorY = window.innerHeight / 2;
     });
 
-    document.addEventListener('wheel', e => {
+    // Mouse Fire & ADS
+    window.addEventListener('mousedown', (e) => {
       if (!this.isLocked || this.playerDead) return;
-      const now = Date.now();
-      if (now - (this.lastWheelTime || 0) < 160) return; // 160ms medium sensitivity cooldown
-      this.lastWheelTime = now;
+      const now = performance.now();
+      if (now - lastFireTouchTime < 100) return; // Prevent synthetic mouse event right after touch fire button
 
-      const direction = e.deltaY > 0 ? 1 : -1;
-      this.switchWeapon(direction);
-    }, { passive: true });
-
-    document.addEventListener('keydown', e => {
-      this.keys[e.code] = true;
-      if (e.code === 'KeyP') {
-        if (this.isLocked) {
-          document.exitPointerLock();
-        } else if (!this.playerDead) {
-          enterImmersiveGame();
-        }
-      }
-      if (e.code === 'KeyH') {
-        this.showControls = !this.showControls;
-        const p = document.getElementById('controls-panel');
-        if (p) p.style.opacity = this.showControls ? '1' : '0';
-      }
-      if (e.code === 'KeyR') {
-        this.reloadWeapon();
-      }
-      // Q key fires rocket (secondary weapon)
-      if (e.code === 'KeyQ') {
-        this.shootSecondary();
-      }
-      // Digit keys to select inventory slots
-      if (e.code === 'Digit1') this.useInventoryItem(0);
-      if (e.code === 'Digit2') this.useInventoryItem(1);
-      if (e.code === 'Digit3') this.useInventoryItem(2);
-      if (e.code === 'Digit4') this.useInventoryItem(3);
-      if (e.code === 'Digit5') this.useInventoryItem(4);
-    });
-    document.addEventListener('keyup', e => { this.keys[e.code] = false; });
-
-    document.addEventListener('mousedown', e => {
-      if (e.button === 2) { // Right Click = ADS (hold)
-        e.preventDefault();
-        e.stopPropagation();
+      if (e.button === 0) {
+        // Left Click: Fire
+        this.mouseLeftDown = true;
+        this.shootPrimaryActual();
+      } else if (e.button === 2) {
+        // Right Click: ADS
         this.mouseRightDown = true;
         this.isADS = true;
       }
-
-      if (!this.isLocked || this.playerDead) return;
-
-      if (e.button === 0) { // Left Click
-        const el = document.elementFromPoint(this.virtualCursorX, this.virtualCursorY);
-        const slot = el ? el.closest('.inventory-slot') : null;
-
-        if (slot) {
-          const index = parseInt((slot as any).dataset.index);
-          const item = this.inventory[index];
-          if (item) {
-            this.draggedItem = item;
-            this.draggedFromSlot = index;
-            slot.classList.add('dragging');
-          }
-        } else {
-          // If hovering over a ground item, pick it up
-          if (this.hoveredObject) {
-            this.pickupGroundItem(this.hoveredObject);
-          } else {
-            // Normal shoot
-            this.mouseLeftDown = true;
-            this.shootPrimary();
-          }
-        }
-      }
     });
 
-    document.addEventListener('mouseup', e => {
-      if (e.button === 2) { // Release right click = exit ADS
-        e.preventDefault();
-        e.stopPropagation();
-        this.mouseRightDown = false;
-        this.isADS = false;
-      }
-
+    window.addEventListener('mouseup', (e) => {
       if (e.button === 0) {
         this.mouseLeftDown = false;
         this.railgunFiredThisPress = false;
         this.stopAutomaticFireEffects();
-      }
-
-      if (!this.isLocked || this.playerDead) return;
-
-      if (e.button === 0 && this.draggedItem) {
-        const el = document.elementFromPoint(this.virtualCursorX, this.virtualCursorY);
-        const slot = el ? el.closest('.inventory-slot') : null;
-
-        // Remove dragging class
-        const slots = document.querySelectorAll('.inventory-slot');
-        slots.forEach(s => s.classList.remove('dragging'));
-
-        if (slot) {
-          const targetIndex = parseInt((slot as any).dataset.index);
-          if (targetIndex === this.draggedFromSlot) {
-            // Click to use or equip
-            this.useInventoryItem(targetIndex);
-          } else {
-            // Swap items
-            const temp = this.inventory[targetIndex];
-            this.inventory[targetIndex] = this.draggedItem;
-            this.inventory[this.draggedFromSlot] = temp;
-
-            if (this.draggedItem.type === 'weapon') {
-              this.activeSlot = targetIndex;
-            }
-            this.updateInventoryUI();
-          }
-        } else {
-          // Dragged to 3D world: Drop
-          this.dropItemOnGround(this.draggedItem, this.draggedFromSlot);
-        }
-
-        this.draggedItem = null;
-        this.draggedFromSlot = -1;
+      } else if (e.button === 2) {
+        this.mouseRightDown = false;
+        this.isADS = false;
       }
     });
+
+    window.addEventListener('contextmenu', (e) => {
+      // Prevent browser right-click menu during ADS
+      e.preventDefault();
+    });
+
+    // Mouse Wheel: Cycle Weapons
+    window.addEventListener('wheel', (e) => {
+      if (!this.isLocked || this.playerDead) return;
+      const now = Date.now();
+      if (now - this.lastWheelTime < 150) return;
+      this.lastWheelTime = now;
+
+      if (e.deltaY > 0) {
+        this.switchWeapon(1);
+      } else if (e.deltaY < 0) {
+        this.switchWeapon(-1);
+      }
+    });
+
+
+    const unlockAudioContext = () => {
+      try {
+        if (!this.audioCtx) {
+          this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => { });
+        }
+      } catch (e) { }
+    };
+    window.addEventListener('click', unlockAudioContext, { capture: true, passive: true });
+    window.addEventListener('touchstart', unlockAudioContext, { capture: true, passive: true });
+    window.addEventListener('pointerdown', unlockAudioContext, { capture: true, passive: true });
+
+    const isIOSDevice = () => {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    };
+
+    const tryFullscreen = () => {
+      // Scroll to hide address bar on iOS / mobile browsers
+      try {
+        window.scrollTo(0, 1);
+      } catch (e) { }
+
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => { });
+        } else if ((document.documentElement as any).webkitRequestFullscreen) {
+          try { (document.documentElement as any).webkitRequestFullscreen(); } catch (e) { }
+        } else if ((document.documentElement as any).webkitEnterFullscreen) {
+          try { (document.documentElement as any).webkitEnterFullscreen(); } catch (e) { }
+        }
+
+        try {
+          const orientation = screen.orientation as any;
+          if (orientation && typeof orientation.lock === 'function') {
+            orientation.lock('landscape').catch(() => { });
+          }
+        } catch (e) { }
+      }
+    };
+
+    const toggleFullscreen = () => {
+      if (isIOSDevice() && !document.documentElement.requestFullscreen) {
+        try { window.scrollTo(0, 1); } catch (e) { }
+        this.showQuickBanner("iOS: Add to Home Screen (Share > Add to Home) for borderless fullscreen!");
+        return;
+      }
+
+      if (!document.fullscreenElement) {
+        tryFullscreen();
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => { });
+        } else if ((document as any).webkitExitFullscreen) {
+          try { (document as any).webkitExitFullscreen(); } catch (e) { }
+        }
+      }
+    };
+
+    // Fullscreen Toggle Button Listener
+    const fsBtn = document.getElementById('btn-fullscreen-toggle');
+    if (fsBtn) {
+      const handleFsToggle = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFullscreen();
+      };
+      fsBtn.addEventListener('click', handleFsToggle);
+      fsBtn.addEventListener('touchend', handleFsToggle);
+    }
+
+    // Mobile Stats Panel Dock / Collapse Toggle Listener
+    const dockBtn = document.getElementById('btn-hud-dock');
+    const infoPanel = document.getElementById('info-panel');
+    if (dockBtn && infoPanel) {
+      const handleDockToggle = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.isHudDocked = !this.isHudDocked;
+        if (this.isHudDocked) {
+          infoPanel.classList.add('is-docked');
+          dockBtn.classList.add('hud-hidden');
+        } else {
+          infoPanel.classList.remove('is-docked');
+          infoPanel.classList.remove('is-peeking');
+          dockBtn.classList.remove('hud-hidden');
+        }
+      };
+      dockBtn.addEventListener('click', handleDockToggle);
+      dockBtn.addEventListener('touchend', handleDockToggle);
+    }
+
+    // Game Over Action Buttons
+    const restartBtn = document.getElementById('btn-restart-game');
+    if (restartBtn) {
+      const handleRestart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.restartGame();
+      };
+      restartBtn.addEventListener('click', handleRestart);
+      restartBtn.addEventListener('touchend', handleRestart);
+    }
+
+    const menuBtn = document.getElementById('btn-menu-game');
+    if (menuBtn) {
+      const handleMenu = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.returnToMenu();
+      };
+      menuBtn.addEventListener('click', handleMenu);
+      menuBtn.addEventListener('touchend', handleMenu);
+    }
+
+    // Deploy Button (ONLY trigger to enter gameplay)
+    const deployBtn = document.getElementById('deploy-btn-content');
+    if (deployBtn) {
+      const handleDeployAction = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        tryFullscreen();
+        enterImmersiveGame();
+      };
+      deployBtn.addEventListener('click', handleDeployAction);
+      deployBtn.addEventListener('touchend', handleDeployAction);
+    }
+
+    // Blocker Background Taps: Triggers Fullscreen request WITHOUT starting the game
+    if (blocker) {
+      const onBlockerBgInteraction = (e: Event) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('#deploy-btn-content') || target.closest('.map-card') || target.closest('.quality-btn') || target.closest('#btn-fullscreen-toggle')) {
+          return;
+        }
+        tryFullscreen();
+      };
+      blocker.addEventListener('click', onBlockerBgInteraction);
+      blocker.addEventListener('touchend', onBlockerBgInteraction);
+    }
+
+    let joystickTouchId: number | null = null;
+    let joystickStartX = 0;
+    let joystickStartY = 0;
+    const joystickBase = document.getElementById('mobile-joystick-base');
+    const joystickKnob = document.getElementById('mobile-joystick-knob');
+    const joystickZone = document.getElementById('mobile-joystick-zone');
+    const lookZone = document.getElementById('mobile-look-zone');
+
+    const updateJoystick = (currentX: number, currentY: number) => {
+      if (!joystickBase || !joystickKnob) return;
+      const maxRadius = Math.max(35, joystickBase.clientWidth / 2);
+
+      let dx = currentX - joystickStartX;
+      let dy = currentY - joystickStartY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > maxRadius) {
+        dx = (dx / dist) * maxRadius;
+        dy = (dy / dist) * maxRadius;
+      }
+
+      // Move knob relative to center
+      joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+      // Movement threshold
+      const normalizedX = dx / maxRadius;
+      const normalizedY = dy / maxRadius;
+      const threshold = 0.22;
+
+      this.keys['KeyW'] = normalizedY < -threshold;
+      this.keys['KeyS'] = normalizedY > threshold;
+      this.keys['KeyA'] = normalizedX < -threshold;
+      this.keys['KeyD'] = normalizedX > threshold;
+    };
+
+    if (joystickZone && lookZone) {
+      joystickZone.addEventListener('touchstart', (e) => {
+        if (!this.isLocked || this.playerDead) return;
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (joystickTouchId === null) {
+            joystickTouchId = t.identifier;
+            joystickStartX = t.clientX;
+            joystickStartY = t.clientY;
+
+            if (joystickBase && joystickKnob) {
+              joystickBase.style.display = 'block';
+              joystickBase.style.left = `${t.clientX}px`;
+              joystickBase.style.top = `${t.clientY}px`;
+              joystickBase.style.bottom = 'auto';
+              joystickBase.style.transform = 'translate(-50%, -50%)';
+              joystickKnob.style.transform = 'translate(-50%, -50%)';
+            }
+          }
+        }
+      }, { passive: false });
+
+      joystickZone.addEventListener('touchmove', (e) => {
+        if (!this.isLocked || this.playerDead) return;
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (t.identifier === joystickTouchId) {
+            updateJoystick(t.clientX, t.clientY);
+          }
+        }
+      }, { passive: false });
+
+      const handleJoystickEnd = (e: TouchEvent) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (t.identifier === joystickTouchId) {
+            joystickTouchId = null;
+            if (joystickBase && joystickKnob) {
+              joystickBase.style.display = 'none';
+              joystickKnob.style.transform = 'translate(-50%, -50%)';
+            }
+            this.keys['KeyW'] = false;
+            this.keys['KeyS'] = false;
+            this.keys['KeyA'] = false;
+            this.keys['KeyD'] = false;
+          }
+        }
+      };
+
+      joystickZone.addEventListener('touchend', handleJoystickEnd);
+      joystickZone.addEventListener('touchcancel', handleJoystickEnd);
+
+      // Look Zone
+      let lookTouchId: number | null = null;
+      let lastLookX = 0;
+      let lastLookY = 0;
+
+      lookZone.addEventListener('touchstart', (e) => {
+        if (!this.isLocked || this.playerDead) return;
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (lookTouchId === null) {
+            lookTouchId = t.identifier;
+            lastLookX = t.clientX;
+            lastLookY = t.clientY;
+          }
+        }
+      }, { passive: false });
+
+      lookZone.addEventListener('touchmove', (e) => {
+        if (!this.isLocked || this.playerDead) return;
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (t.identifier === lookTouchId) {
+            const dx = t.clientX - lastLookX;
+            const dy = t.clientY - lastLookY;
+            lastLookX = t.clientX;
+            lastLookY = t.clientY;
+
+            const baseSensitivity = 0.005;
+            const sensitivity = baseSensitivity * (1.0 - this.adsBlend * 0.3);
+            this.camYaw -= dx * sensitivity;
+            this.camPitch = THREE.MathUtils.clamp(
+              this.camPitch - dy * sensitivity,
+              -1.35,
+              1.35
+            );
+          }
+        }
+      }, { passive: false });
+
+      const handleLookEnd = (e: TouchEvent) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (t.identifier === lookTouchId) {
+            lookTouchId = null;
+          }
+        }
+      };
+
+      lookZone.addEventListener('touchend', handleLookEnd);
+      lookZone.addEventListener('touchcancel', handleLookEnd);
+    }
+
+    // Action Buttons - Instant Zero-Delay Capture Touch Listeners
+    const btnFire = document.getElementById('btn-mobile-fire');
+    const btnFireLeft = document.getElementById('btn-mobile-fire-left');
+
+    let lastFireTouchTime = 0;
+    const stopAllFiring = () => {
+      this.mouseLeftDown = false;
+      this.railgunFiredThisPress = false;
+      if (btnFire) btnFire.classList.remove('active');
+      if (btnFireLeft) btnFireLeft.classList.remove('active');
+      this.stopAutomaticFireEffects();
+    };
+
+    const bindFireButton = (btn: HTMLElement | null) => {
+      if (!btn) return;
+      const onFireStart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = performance.now();
+        if (now - lastFireTouchTime < 50) return; // Debounce dual touch events
+        lastFireTouchTime = now;
+
+        if (this.isLocked && !this.playerDead) {
+          this.mouseLeftDown = true;
+          btn.classList.add('active');
+          this.shootPrimary(); // Fires single-shot immediately or triggers auto-fire / charging
+        }
+      };
+
+      const onFireEnd = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        stopAllFiring();
+      };
+
+      btn.addEventListener('touchstart', onFireStart, { capture: true, passive: false });
+      btn.addEventListener('pointerdown', onFireStart, { capture: true });
+      btn.addEventListener('touchend', onFireEnd, { capture: true, passive: false });
+      btn.addEventListener('touchcancel', onFireEnd, { capture: true, passive: false });
+      btn.addEventListener('pointerup', onFireEnd, { capture: true });
+      btn.addEventListener('pointercancel', onFireEnd, { capture: true });
+    };
+
+    bindFireButton(btnFire);
+    bindFireButton(btnFireLeft);
+
+    // Global window-level safety to ensure touch release is always caught (even if finger slides off button)
+    window.addEventListener('touchend', () => {
+      if (this.mouseLeftDown) stopAllFiring();
+    }, { passive: true });
+    window.addEventListener('touchcancel', () => {
+      if (this.mouseLeftDown) stopAllFiring();
+    }, { passive: true });
+    window.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'touch' && this.mouseLeftDown) stopAllFiring();
+    });
+
+    const btnSprint = document.getElementById('btn-mobile-sprint');
+    if (btnSprint) {
+      let sprintTouchStartTime = 0;
+      let lastHandledTime = 0;
+      let wasLockedBeforeTouch = false;
+
+      const setSprintState = (active: boolean) => {
+        this.keys['ShiftLeft'] = active;
+        this.isSprintLocked = active;
+        if (active) {
+          btnSprint.classList.add('active');
+        } else {
+          btnSprint.classList.remove('active');
+        }
+      };
+
+      const handleSprintStart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!this.isLocked || this.playerDead) return;
+        const now = Date.now();
+        if (now - lastHandledTime < 100) return; // Prevent double trigger from simultaneous touchstart + pointerdown
+        lastHandledTime = now;
+        sprintTouchStartTime = now;
+        wasLockedBeforeTouch = this.isSprintLocked;
+
+        // If sprint was OFF, activate sprint immediately on touch down
+        if (!wasLockedBeforeTouch) {
+          setSprintState(true);
+        }
+      };
+
+      const handleSprintEnd = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!this.isLocked || this.playerDead) return;
+        const now = Date.now();
+        const duration = now - sprintTouchStartTime;
+
+        if (duration < 300) {
+          // Quick Tap (< 300ms): Toggle sprint lock
+          if (wasLockedBeforeTouch) {
+            // Was ON -> toggle to OFF
+            setSprintState(false);
+          } else {
+            // Was OFF -> keep sprint locked ON
+            setSprintState(true);
+          }
+        } else {
+          // Long press / Hold-to-sprint (> 300ms): Stop sprint upon release
+          setSprintState(false);
+        }
+      };
+
+      btnSprint.addEventListener('touchstart', handleSprintStart, { capture: true, passive: false });
+      btnSprint.addEventListener('touchend', handleSprintEnd, { capture: true, passive: false });
+      btnSprint.addEventListener('touchcancel', handleSprintEnd, { capture: true, passive: false });
+      btnSprint.addEventListener('pointerdown', handleSprintStart, { capture: true });
+      btnSprint.addEventListener('pointerup', handleSprintEnd, { capture: true });
+      btnSprint.addEventListener('pointercancel', handleSprintEnd, { capture: true });
+    }
+
+    const btnAds = document.getElementById('btn-mobile-ads');
+    if (btnAds) {
+      const onAdsStart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.isLocked && !this.playerDead) {
+          this.mouseRightDown = true;
+          this.isADS = true;
+          btnAds.classList.add('active');
+        }
+      };
+      const onAdsEnd = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.mouseRightDown = false;
+        this.isADS = false;
+        btnAds.classList.remove('active');
+      };
+
+      btnAds.addEventListener('touchstart', onAdsStart, { capture: true, passive: false });
+      btnAds.addEventListener('pointerdown', onAdsStart, { capture: true });
+      btnAds.addEventListener('touchend', onAdsEnd, { capture: true, passive: false });
+      btnAds.addEventListener('touchcancel', onAdsEnd, { capture: true, passive: false });
+      btnAds.addEventListener('pointerup', onAdsEnd, { capture: true });
+    }
+
+    const btnJump = document.getElementById('btn-mobile-jump');
+    if (btnJump) {
+      const onJumpStart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.isLocked && !this.playerDead) {
+          this.keys['Space'] = true;
+          btnJump.classList.add('active');
+        }
+      };
+      const onJumpEnd = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.keys['Space'] = false;
+        btnJump.classList.remove('active');
+      };
+
+      btnJump.addEventListener('touchstart', onJumpStart, { capture: true, passive: false });
+      btnJump.addEventListener('pointerdown', onJumpStart, { capture: true });
+      btnJump.addEventListener('touchend', onJumpEnd, { capture: true, passive: false });
+      btnJump.addEventListener('touchcancel', onJumpEnd, { capture: true, passive: false });
+      btnJump.addEventListener('pointerup', onJumpEnd, { capture: true });
+    }
+
+    const btnReload = document.getElementById('btn-mobile-reload');
+    if (btnReload) {
+      const onReloadStart = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.isLocked && !this.playerDead) {
+          btnReload.classList.add('active');
+          this.reloadWeapon();
+          setTimeout(() => btnReload.classList.remove('active'), 250);
+        }
+      };
+
+      btnReload.addEventListener('touchstart', onReloadStart, { capture: true, passive: false });
+      btnReload.addEventListener('pointerdown', onReloadStart, { capture: true });
+    }
+
+    // Settings / Pause Button
+    const btnPause = document.getElementById('btn-mobile-pause');
+    if (btnPause) {
+      const handlePauseAction = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.pauseGame();
+      };
+      btnPause.addEventListener('touchstart', handlePauseAction, { capture: true, passive: false });
+      btnPause.addEventListener('pointerdown', handlePauseAction, { capture: true });
+      btnPause.addEventListener('click', handlePauseAction, { capture: true });
+    }
+
+    // Inventory Event Delegation (Guarantees weapon/item selection on touch & click)
+    const inventoryHud = document.getElementById('inventory-hud');
+    if (inventoryHud) {
+      const handleInventorySelect = (e) => {
+        if (!this.isLocked || this.playerDead) return;
+        const target = (e.target as HTMLElement).closest('.inventory-slot') as HTMLElement;
+        if (target && target.dataset && target.dataset.index !== undefined) {
+          e.preventDefault();
+          e.stopPropagation();
+          const index = parseInt(target.dataset.index, 10);
+          if (!isNaN(index)) {
+            this.useInventoryItem(index);
+          }
+        }
+      };
+      inventoryHud.addEventListener('touchstart', handleInventorySelect, { passive: false });
+      inventoryHud.addEventListener('pointerdown', handleInventorySelect);
+      inventoryHud.addEventListener('click', handleInventorySelect);
+    }
 
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -4552,6 +5471,257 @@ class Game {
         this.composer.setSize(window.innerWidth, window.innerHeight);
       }
     });
+
+    this.setupGyroscope();
+  }
+
+  // ==============================================================
+  //  GYROSCOPE AIMING (PUBG Mobile / BGMI Motion Aiming & Settings)
+  // ==============================================================
+  gyroEnabled: boolean = true;
+  gyroMultiplier: number = 0.65;
+  gyroListening: boolean = false;
+  gyroPermissionGranted: boolean = false;
+  gyroLastTime: number = 0;
+  gyroSmoothPitchRate: number = 0;
+  gyroSmoothYawRate: number = 0;
+  gyroPrevBeta: number | null = null;
+  gyroPrevGamma: number | null = null;
+  gyroPrevAlpha: number | null = null;
+
+  requestGyroPermission() {
+    if (this.gyroPermissionGranted) return;
+    try {
+      if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
+        (DeviceMotionEvent as any).requestPermission()
+          .then((state: string) => {
+            if (state === 'granted') {
+              this.gyroPermissionGranted = true;
+              this.startGyroscope();
+            }
+          })
+          .catch(() => { });
+      } else if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
+        (DeviceOrientationEvent as any).requestPermission()
+          .then((state: string) => {
+            if (state === 'granted') {
+              this.gyroPermissionGranted = true;
+              this.startGyroscope();
+            }
+          })
+          .catch(() => { });
+      } else {
+        this.gyroPermissionGranted = true;
+        this.startGyroscope();
+      }
+    } catch (e) { }
+  }
+
+  getScreenAngle(): number {
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.angle === 'number') {
+      return window.screen.orientation.angle;
+    }
+    if (typeof window.orientation === 'number') {
+      return window.orientation;
+    }
+    return 90; // Standard Landscape
+  }
+
+  startGyroscope() {
+    if (this.gyroListening) return;
+    this.gyroListening = true;
+
+    window.addEventListener('devicemotion', (e: DeviceMotionEvent) => {
+      if (!this.gyroEnabled || !this.isLocked || this.playerDead) return;
+      const r = e.rotationRate;
+      if (!r || (r.alpha === null && r.beta === null && r.gamma === null)) return;
+
+      const now = performance.now();
+      const dt = this.gyroLastTime ? Math.min((now - this.gyroLastTime) / 1000, 0.05) : 0.016;
+      this.gyroLastTime = now;
+
+      let rawPitchRate = 0; // deg/sec (up/down tilt)
+      let rawYawRate = 0;   // deg/sec (left/right rotation)
+
+      const angle = this.getScreenAngle();
+
+      if (angle === 90) {
+        // Landscape Primary (Standard phone hold with top of phone to the left)
+        rawPitchRate = -(r.beta || 0);
+        rawYawRate = (r.gamma || 0) + (r.alpha || 0) * 0.35;
+      } else if (angle === 270 || angle === -90) {
+        // Landscape Reverse (Flipped 180 degrees)
+        rawPitchRate = (r.beta || 0);
+        rawYawRate = -(r.gamma || 0) + (r.alpha || 0) * 0.35;
+      } else {
+        // Portrait or other orientations
+        rawPitchRate = (r.beta || 0);
+        rawYawRate = (r.gamma || 0);
+      }
+
+      // Micro-jitter noise filter
+      const deadzone = 0.25; // deg/sec threshold
+      if (Math.abs(rawPitchRate) < deadzone) rawPitchRate = 0;
+      if (Math.abs(rawYawRate) < deadzone) rawYawRate = 0;
+
+      // Exponential Moving Average Smoothing (Snappy response without trembling)
+      this.gyroSmoothPitchRate = this.gyroSmoothPitchRate * 0.35 + rawPitchRate * 0.65;
+      this.gyroSmoothYawRate = this.gyroSmoothYawRate * 0.35 + rawYawRate * 0.65;
+
+      // Sensitivities calibrated for PUBG Mobile / BGMI motion aiming
+      const isADS = this.isADS;
+      const gyroSensitivity = isADS ? 0.00095 : 0.00078;
+
+      const dYaw = this.gyroSmoothYawRate * dt * gyroSensitivity * 57.2958 * this.gyroMultiplier;
+      const dPitch = this.gyroSmoothPitchRate * dt * gyroSensitivity * 57.2958 * this.gyroMultiplier;
+
+      this.camYaw += dYaw;
+      this.camPitch = THREE.MathUtils.clamp(
+        this.camPitch + dPitch,
+        -1.35,
+        1.35
+      );
+    }, { passive: true });
+
+    // Fallback for devices where devicemotion.rotationRate is not exposed
+    window.addEventListener('deviceorientation', (e: DeviceOrientationEvent) => {
+      if (this.gyroLastTime && (performance.now() - this.gyroLastTime < 100)) return;
+      if (!this.gyroEnabled || !this.isLocked || this.playerDead) return;
+
+      const gamma = e.gamma;
+      const beta = e.beta;
+      const alpha = e.alpha;
+      if (gamma === null || beta === null || alpha === null) return;
+
+      if (this.gyroPrevGamma === null || this.gyroPrevBeta === null || this.gyroPrevAlpha === null) {
+        this.gyroPrevGamma = gamma;
+        this.gyroPrevBeta = beta;
+        this.gyroPrevAlpha = alpha;
+        return;
+      }
+
+      const dBeta = beta - this.gyroPrevBeta;
+      const dGamma = gamma - this.gyroPrevGamma;
+
+      this.gyroPrevGamma = gamma;
+      this.gyroPrevBeta = beta;
+      this.gyroPrevAlpha = alpha;
+
+      const angle = this.getScreenAngle();
+      let deltaPitch = 0;
+      let deltaYaw = 0;
+
+      if (angle === 90) {
+        deltaPitch = -dBeta;
+        deltaYaw = dGamma;
+      } else if (angle === 270 || angle === -90) {
+        deltaPitch = dBeta;
+        deltaYaw = -dGamma;
+      } else {
+        deltaPitch = dBeta;
+        deltaYaw = dGamma;
+      }
+
+      if (Math.abs(deltaPitch) > 40 || Math.abs(deltaYaw) > 40) return;
+
+      const isADS = this.isADS;
+      const scale = isADS ? 0.045 : 0.035;
+
+      this.camYaw += (deltaYaw * (Math.PI / 180)) * scale * this.gyroMultiplier;
+      this.camPitch = THREE.MathUtils.clamp(
+        this.camPitch + (deltaPitch * (Math.PI / 180)) * scale * this.gyroMultiplier,
+        -1.35,
+        1.35
+      );
+    }, { passive: true });
+  }
+
+  setupGyroscope() {
+    // Load saved preferences
+    try {
+      const savedEnabled = localStorage.getItem('tactical_gyro_enabled');
+      if (savedEnabled !== null) {
+        this.gyroEnabled = savedEnabled === 'true';
+      }
+      const savedSens = localStorage.getItem('tactical_gyro_sens');
+      if (savedSens !== null) {
+        const parsed = parseFloat(savedSens);
+        if (!isNaN(parsed) && parsed >= 0.2 && parsed <= 3.0) {
+          this.gyroMultiplier = parsed;
+        }
+      }
+    } catch (e) { }
+
+    // Initialize UI Elements
+    const toggleBtn = document.getElementById('gyro-toggle-btn');
+    const toggleStatus = document.getElementById('gyro-toggle-status');
+    const slider = document.getElementById('gyro-sensitivity-slider') as HTMLInputElement | null;
+    const valueBadge = document.getElementById('gyro-sensitivity-value');
+    const sliderContainer = document.getElementById('gyro-slider-container');
+
+    const updateToggleUI = () => {
+      if (toggleBtn && toggleStatus) {
+        if (this.gyroEnabled) {
+          toggleBtn.classList.add('active');
+          toggleStatus.textContent = 'ON';
+          if (sliderContainer) sliderContainer.classList.remove('disabled');
+        } else {
+          toggleBtn.classList.remove('active');
+          toggleStatus.textContent = 'OFF';
+          if (sliderContainer) sliderContainer.classList.add('disabled');
+        }
+      }
+    };
+
+    const updateSliderUI = () => {
+      const pct = Math.round(this.gyroMultiplier * 100);
+      if (slider) slider.value = String(pct);
+      if (valueBadge) valueBadge.textContent = `${pct}%`;
+    };
+
+    updateToggleUI();
+    updateSliderUI();
+
+    if (toggleBtn) {
+      const handleToggle = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.gyroEnabled = !this.gyroEnabled;
+        updateToggleUI();
+        try {
+          localStorage.setItem('tactical_gyro_enabled', String(this.gyroEnabled));
+        } catch (err) { }
+      };
+      toggleBtn.addEventListener('click', handleToggle);
+      toggleBtn.addEventListener('touchend', handleToggle);
+    }
+
+    if (slider) {
+      const handleSliderChange = () => {
+        const val = parseInt(slider.value, 10);
+        this.gyroMultiplier = Math.max(0.2, Math.min(3.0, val / 100));
+        if (valueBadge) valueBadge.textContent = `${val}%`;
+        try {
+          localStorage.setItem('tactical_gyro_sens', String(this.gyroMultiplier));
+        } catch (err) { }
+      };
+      slider.addEventListener('input', handleSliderChange);
+      slider.addEventListener('change', handleSliderChange);
+    }
+
+    // Sensor and Device Capability Verification
+    const hasGyroSensor = ('DeviceOrientationEvent' in window) || ('DeviceMotionEvent' in window);
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+    const gyroSection = document.getElementById('gyro-settings-section');
+    if (gyroSection) {
+      if (!isTouch || !hasGyroSensor) {
+        gyroSection.style.display = 'none';
+      } else {
+        gyroSection.style.display = 'block';
+      }
+    }
+
+    this.startGyroscope();
   }
 
   setupPostProcessing() {
@@ -4629,8 +5799,8 @@ class Game {
     this.adsBlend = THREE.MathUtils.lerp(this.adsBlend, adsTarget, dt * 8.0);
     if (Math.abs(this.adsBlend - adsTarget) < 0.005) this.adsBlend = adsTarget;
 
-    const sprinting = !!this.keys['ShiftLeft'];
-    
+    const sprinting = !!this.keys['ShiftLeft'] || !!this.isSprintLocked;
+
     // Calculate physical speed: ADS sprint is faster than ADS walk, but slower than hip normal/sprint
     const baseSpeed = sprinting ? this.SPRINT_SPEED : this.MOVE_SPEED;
     let speed = baseSpeed;
@@ -4700,7 +5870,7 @@ class Game {
         const fallVel = Math.abs(this.prevVelocityY);
         if (fallVel > 12) {
           this.landingBendIntensity = Math.min(fallVel / 40.0, 1.2);
-          
+
           if (fallVel > 30) {
             const impactStrength = Math.min(fallVel / 150, 1.0);
             this.landingDipVel = -impactStrength * 8.0;
@@ -4893,7 +6063,7 @@ class Game {
     if (this.robotModel && !this.playerDead) {
       const rightArm = this.robotModel.getObjectByName('mixamorigRightArm') || this.robotModel.getObjectByName('RightArm');
       const rightForeArm = this.robotModel.getObjectByName('mixamorigRightForeArm') || this.robotModel.getObjectByName('RightForeArm');
-      
+
       if (rightArm) {
         // Raise arm horizontally (Z = PI/2) and point it straight forward (X = -PI/2), tracking camera pitch
         const targetRotX = -Math.PI / 2 - this.camPitch;
@@ -4903,11 +6073,11 @@ class Game {
         rightArm.rotation.x = THREE.MathUtils.lerp(rightArm.rotation.x, targetRotX, this.adsBlend);
         rightArm.rotation.y = THREE.MathUtils.lerp(rightArm.rotation.y, targetRotY, this.adsBlend);
         rightArm.rotation.z = THREE.MathUtils.lerp(rightArm.rotation.z, targetRotZ, this.adsBlend);
-        
+
         // Force Three.js quaternion to update from the new Euler rotation
         rightArm.quaternion.setFromEuler(rightArm.rotation);
       }
-      
+
       if (rightForeArm) {
         // Straighten the elbow forearm during aiming so weapon points directly forward
         rightForeArm.rotation.x = THREE.MathUtils.lerp(rightForeArm.rotation.x, 0.0, this.adsBlend);
@@ -4921,7 +6091,7 @@ class Game {
     if (this.robotModel && !this.playerDead) {
       const targetJump = this.onGround ? 0.0 : 1.0;
       this.jumpBlend = THREE.MathUtils.lerp(this.jumpBlend || 0.0, targetJump, dt * 10.0);
-      
+
       // Decay landing impact shock absorb bend smoothly
       this.landingBendIntensity = THREE.MathUtils.lerp(this.landingBendIntensity || 0.0, 0.0, dt * 8.0);
       const activeOverrideBlend = Math.max(this.jumpBlend, this.landingBendIntensity);
@@ -4951,12 +6121,12 @@ class Game {
           // Dynamic running/walking leap split: alternate leading leg based on the current step cycle phase
           const leadingLegLeft = Math.sin(this.footstepPhase) > 0;
           if (leadingLegLeft) {
-            leftThighTarget = -1.1; 
+            leftThighTarget = -1.1;
             rightThighTarget = 0.45;
             leftKneeTarget = 0.95;
             rightKneeTarget = 0.5;
           } else {
-            leftThighTarget = 0.45; 
+            leftThighTarget = 0.45;
             rightThighTarget = -1.1;
             leftKneeTarget = 0.5;
             rightKneeTarget = 0.95;
@@ -5280,13 +6450,45 @@ class Game {
         }
 
         if (item) {
-          if (item.image) {
-            slot.innerHTML = `<img src="${item.image}" class="item-icon-img" /><span class="item-label">${item.name}</span>`;
+          if (item.type === 'weapon') {
+            const currentClip = (index === this.activeSlot) ? this.ammo : (item.clip !== undefined ? item.clip : (item.maxClip || 15));
+            const currentReserve = (index === this.activeSlot) ? this.reserveAmmo : (item.reserve !== undefined ? item.reserve : 999);
+            const isRel = (index === this.activeSlot && this.isReloading);
+
+            const imgTag = item.image
+              ? `<img src="${item.image}" class="slot-gun-img" alt="${item.name}" />`
+              : `<span class="slot-item-emoji">${item.icon || '🔫'}</span>`;
+
+            const bottomHtml = isRel
+              ? `<div class="slot-bottom-bar reloading"><span class="reload-tag">RELOAD</span></div>`
+              : `<div class="slot-bottom-bar"><span class="clip-count">${currentClip}</span><span class="ammo-slash">/</span><span class="reserve-count">${currentReserve}</span></div>`;
+
+            slot.innerHTML = `
+              <div class="slot-top-section">
+                ${imgTag}
+                <span class="slot-gun-name">${item.name}</span>
+              </div>
+              <div class="slot-bottom-section">
+                ${bottomHtml}
+              </div>
+            `;
           } else {
-            slot.innerHTML = `<span class="item-icon">${item.icon || '❓'}</span><span class="item-label">${item.name}</span>`;
+            slot.innerHTML = `
+              <div class="slot-top-section">
+                <span class="slot-item-emoji">${item.icon || '💎'}</span>
+                <span class="slot-gun-name">${item.name || 'Item'}</span>
+              </div>
+              <div class="slot-bottom-section">
+                <span class="slot-use-tag">USE</span>
+              </div>
+            `;
           }
         } else {
-          slot.innerHTML = `<span class="item-label">Empty</span>`;
+          slot.innerHTML = `
+            <div class="slot-empty">
+              <span class="empty-label">Empty</span>
+            </div>
+          `;
         }
       }
     });
@@ -5623,16 +6825,16 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', onFirstInteraction, { capture: true });
   window.addEventListener('click', onFirstInteraction, { capture: true });
 
-  // Map selection card click handlers
+  // Map selection touch & click handlers
   const mapCards = document.querySelectorAll('.map-card');
   const blocker = document.getElementById('blocker');
   mapCards.forEach(card => {
-    card.addEventListener('click', (e) => {
-      e.stopPropagation(); // don't trigger blocker click
+    const handleMapSelect = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation(); // don't trigger deploy/blocker click
       mapCards.forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
 
-      // Update the menu theme overlay to match selected map
       const mapId = (card as HTMLElement).dataset.map;
       if (blocker && mapId) {
         blocker.className = blocker.className.replace(/theme-\w+/g, '');
@@ -5641,12 +6843,55 @@ window.addEventListener('DOMContentLoaded', () => {
 
       tryFullscreen();
 
-      // Swap the active map immediately in the background so there's no lag on deploy click
       if (mapId && (window as any).game) {
         (window as any).game.changeMap(mapId);
       }
-    });
+    };
+
+    card.addEventListener('click', handleMapSelect);
+    card.addEventListener('touchend', handleMapSelect);
   });
+
+  // Graphics / Resolution Quality touch & click handlers
+  const qualityBtns = document.querySelectorAll('.quality-btn');
+  qualityBtns.forEach(btn => {
+    const handleQualitySelect = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const quality = (btn as HTMLElement).dataset.quality;
+      if (quality && (window as any).game) {
+        (window as any).game.setGraphicsQuality(quality);
+      }
+    };
+
+    btn.addEventListener('click', handleQualitySelect);
+    btn.addEventListener('touchend', handleQualitySelect);
+  });
+  // Orientation Check for Touch Devices
+  const checkOrientation = () => {
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+
+    // Ensure body.is-mobile is active on all mobile and touch devices
+    if (isTouch) {
+      document.body.classList.add('is-mobile');
+    } else {
+      document.body.classList.remove('is-mobile');
+    }
+
+    const rotateOverlay = document.getElementById('rotate-device-overlay');
+    if (rotateOverlay) {
+      if (isTouch && isPortrait) {
+        rotateOverlay.style.display = 'flex';
+      } else {
+        rotateOverlay.style.display = 'none';
+      }
+    }
+  };
+
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', checkOrientation);
+  checkOrientation();
 
   new Game();
 });

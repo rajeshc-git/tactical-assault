@@ -70,26 +70,70 @@ canvas {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Level Up Banner */
+/* Level Up & Quick Notification Banner */
 #level-banner {
   position: fixed;
-  top: 25%;
+  top: 22%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.5);
-  font-size: 3.2rem;
-  font-weight: 900;
-  letter-spacing: 0.15em;
+  transform: translate(-50%, -50%) scale(0.7);
+  font-size: clamp(1.35rem, 3.2vw, 2.3rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
   color: #ffd700;
-  text-shadow: 0 0 25px rgba(255, 215, 0, 0.8), 0 0 50px rgba(255, 120, 0, 0.6);
+  text-shadow: 0 0 16px rgba(255, 215, 0, 0.75), 0 0 35px rgba(255, 120, 0, 0.5);
+  background: rgba(8, 14, 26, 0.78);
+  border: 1px solid rgba(255, 215, 0, 0.45);
+  border-radius: 999px;
+  padding: 8px 24px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(255, 215, 0, 0.15);
+  max-width: 90vw;
+  text-align: center;
+  white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   z-index: 1500;
-  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: opacity 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.2),
+              transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.2);
 }
 
 #level-banner.show {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1.1);
+  transform: translate(-50%, -50%) scale(1.0);
+}
+
+/* Mobile & Small Screen Responsive Overrides */
+body.is-mobile #level-banner {
+  top: 16%;
+  font-size: clamp(0.75rem, 2.7vw, 0.98rem);
+  letter-spacing: 0.03em;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border-color: rgba(255, 215, 0, 0.35);
+  background: rgba(6, 12, 22, 0.85);
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  white-space: normal;
+  max-width: 85vw;
+  line-height: 1.25;
+}
+
+@media (max-width: 850px), (max-height: 520px) {
+  #level-banner {
+    top: 16%;
+    font-size: clamp(0.75rem, 2.7vw, 0.98rem);
+    letter-spacing: 0.03em;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border-color: rgba(255, 215, 0, 0.35);
+    background: rgba(6, 12, 22, 0.85);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    white-space: normal;
+    max-width: 85vw;
+    line-height: 1.25;
+  }
 }
 
 /* ============================================
@@ -715,4 +759,497 @@ canvas {
   .inventory-slot .item-icon {
     font-size: 1.4rem;
   }
+}
+
+
+/* Hide in-game bottom controls reminder on mobile/touch screens completely, show ONLY on desktop */
+body.is-mobile #controls-panel {
+  display: none !important;
+}
+@media (hover: none) and (pointer: coarse) {
+  #controls-panel {
+    display: none !important;
+  }
+}
+@media (max-width: 900px) {
+  body.is-mobile #controls-panel {
+    display: none !important;
+  }
+}
+
+/* =========================================================================
+   Mobile & Tablet: Single Horizontal Line Ultra-Clear Transparent HUD
+   ========================================================================= */
+body.is-mobile .desktop-stat-row,
+body.is-mobile #row-weapon,
+body.is-mobile #row-weather,
+body.is-mobile #weather-display,
+body.is-mobile #weapon-display,
+body.is-mobile #ammo-display {
+  display: none !important;
+}
+
+/* Mobile & Tablet explicitly show Level, Kills, Points, and FPS */
+body.is-mobile #row-level,
+body.is-mobile #row-kills,
+body.is-mobile #row-score,
+body.is-mobile #row-fps {
+  display: flex !important;
+}
+
+body.is-mobile #info-panel {
+  position: absolute !important;
+  top: clamp(8px, 1.8vh, 16px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) translateY(0) !important;
+  right: auto !important;
+  min-width: auto !important;
+  max-width: 95vw !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(6px, 1.2vw, 12px) !important;
+  background: rgba(10, 20, 40, 0.45) !important; /* Ultra-clear transparent glassmorphic background */
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 12px !important;
+  padding: clamp(3px, 0.8vh, 6px) clamp(10px, 1.8vw, 16px) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  z-index: 1000 !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, background-color 0.3s ease !important;
+}
+
+/* Docked (Collapsed) State on Mobile: completely slides off-screen */
+body.is-mobile #info-panel.is-docked {
+  transform: translateX(-50%) translateY(-180%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Auto-peek state on taking damage */
+body.is-mobile #info-panel.is-docked.is-peeking {
+  transform: translateX(-50%) translateY(0) !important;
+  opacity: 1 !important;
+}
+
+/* Mobile Stats Dock Toggle Button (Positioned next to Settings / Pause Icon on Top-Left) */
+#btn-hud-dock {
+  display: none;
+}
+
+body.is-mobile #btn-hud-dock {
+  cursor: pointer !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+  justify-content: center !important;
+  align-items: center !important;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(100, 190, 255, 0.2) !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+  background: rgba(12, 22, 40, 0.65) !important; /* Transparent glass */
+  border: 1.5px solid rgba(100, 190, 255, 0.45) !important;
+  border-radius: 50% !important;
+  width: clamp(36px, 7.5vmin, 46px) !important;
+  height: clamp(36px, 7.5vmin, 46px) !important;
+  display: flex !important;
+  position: fixed !important;
+  top: clamp(8px, 1.8vh, 16px) !important;
+  left: calc(clamp(8px, 2vw, 16px) + clamp(36px, 7.5vmin, 46px) + clamp(6px, 1vw, 10px)) !important;
+  right: auto !important;
+  color: #64b5f6 !important;
+}
+
+body.is-mobile #btn-hud-dock:active {
+  transform: scale(0.92) !important;
+  background: rgba(40, 90, 160, 0.85) !important;
+  box-shadow: 0 0 20px rgba(100, 190, 255, 0.7) !important;
+  color: #ffffff !important;
+}
+
+/* Dimmed / distinct look when HUD is hidden */
+body.is-mobile #btn-hud-dock.hud-hidden {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: rgba(10, 16, 30, 0.5) !important;
+  color: rgba(160, 200, 255, 0.5) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.is-mobile #info-panel .status-container {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: clamp(5px, 1vw, 8px) !important;
+  padding: 0 clamp(5px, 1vw, 8px) 0 0 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+body.is-mobile #info-panel .status-container > div {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+body.is-mobile #info-panel .status-container div[style*="width: 100px"],
+body.is-mobile #info-panel .status-container div[style*="width:100px"] {
+  width: clamp(48px, 8.5vw, 68px) !important;
+  height: 8px !important;
+}
+
+body.is-mobile #info-panel #health-percentage {
+  font-size: clamp(0.62rem, 1.3vmin, 0.72rem) !important;
+}
+
+body.is-mobile #info-panel #lives-display {
+  font-size: clamp(0.62rem, 1.3vmin, 0.72rem) !important;
+  letter-spacing: 1px !important;
+}
+
+body.is-mobile #info-panel .info-row:not(.desktop-stat-row) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 0 !important;
+  font-size: clamp(0.58rem, 1.2vmin, 0.7rem) !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+body.is-mobile #info-panel #score-display {
+  display: inline-block !important;
+  font-size: clamp(0.58rem, 1.2vmin, 0.72rem) !important;
+  font-weight: 700 !important;
+  color: #ffd700 !important;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+  white-space: nowrap !important;
+}
+
+body.is-mobile #info-panel .desktop-stat-row,
+body.is-mobile #info-panel #row-weapon,
+body.is-mobile #info-panel #row-weather,
+body.is-mobile #info-panel #weather-display,
+body.is-mobile #info-panel #weapon-display,
+body.is-mobile #info-panel #ammo-display {
+  display: none !important;
+}
+
+body.is-mobile #info-panel .info-icon {
+  font-size: clamp(0.7rem, 1.4vmin, 0.82rem) !important;
+  width: auto !important;
+}
+
+body.is-mobile #info-panel #fps {
+  color: #00ffaa !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 6px rgba(0, 255, 170, 0.5);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .desktop-stat-row,
+  #row-weapon,
+  #row-weather,
+  #weather-display,
+  #weapon-display,
+  #ammo-display {
+    display: none !important;
+  }
+}
+
+
+/* Reload Button 360-Degree Spin Animation */
+.mobile-btn.reload.reloading .btn-svg-icon {
+  animation: reloadSpin 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+}
+
+@keyframes reloadSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+
+
+/* SPRINT / RUN BUTTON (Positioned to the right of Jump, same size, dark glass default, glowing green active) */
+/* SPRINT BUTTON (Positioned next to Jump, glowing green on hold/toggle active) */
+.mobile-btn.sprint {
+  right: clamp(16px, 3.2vw, 42px);
+  bottom: clamp(140px, 28vh, 210px);
+  width: clamp(48px, 9.5vmin, 64px);
+  height: clamp(48px, 9.5vmin, 64px);
+  background: rgba(20, 35, 60, 0.65);
+  border: 1.5px solid rgba(140, 200, 255, 0.45);
+}
+
+.mobile-btn.sprint .btn-svg-icon {
+  width: clamp(22px, 4.5vmin, 30px);
+  height: clamp(22px, 4.5vmin, 30px);
+}
+
+.mobile-btn.sprint .btn-txt {
+  font-size: clamp(0.48rem, 1.2vmin, 0.65rem);
+}
+
+.mobile-btn.sprint.active {
+  background: radial-gradient(circle, rgba(0, 230, 140, 0.8) 0%, rgba(0, 140, 80, 0.9) 100%) !important;
+  border-color: #00ffaa !important;
+  box-shadow: 0 0 20px rgba(0, 255, 170, 0.75), inset 0 0 8px rgba(255, 255, 255, 0.6) !important;
+  color: #ffffff !important;
+  transform: scale(0.96);
+}
+
+.mobile-btn.sprint.active .btn-svg-icon {
+  color: #ffffff !important;
+}
+
+.mobile-btn.sprint.active .btn-txt {
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 8px #00ffaa !important;
+}
+
+
+/* =========================================================================
+   Gyroscope Settings UI (Menu Inline Slider & Toggle Switch)
+   ========================================================================= */
+
+#gyro-settings-section {
+  display: none;
+
+  background: rgba(15, 28, 52, 0.65);
+  border: 1px solid rgba(100, 170, 255, 0.22);
+  border-radius: 12px;
+  padding: clamp(8px, 1.4vh, 12px) clamp(12px, 2vw, 18px);
+  margin: clamp(6px, 1.2vh, 12px) auto clamp(10px, 1.8vh, 16px);
+  max-width: 620px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Show Gyroscope controls ONLY on mobile & tablet devices with touch & sensor capability */
+body.is-mobile #gyro-settings-section {
+  display: block;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  #gyro-settings-section {
+    display: block;
+  }
+}
+
+body:not(.is-mobile) #gyro-settings-section {
+  display: none !important;
+}
+
+.gyro-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.gyro-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gyro-icon {
+  font-size: clamp(0.85rem, 1.8vmin, 1.05rem);
+}
+
+.gyro-title {
+  font-size: clamp(0.7rem, 1.5vmin, 0.8rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #a0cdff;
+  text-shadow: 0 0 10px rgba(100, 180, 255, 0.3);
+}
+
+.gyro-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 3px 10px 3px 6px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.gyro-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.gyro-toggle-btn .toggle-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #667788;
+  transition: all 0.25s ease;
+}
+
+.gyro-toggle-btn .toggle-label {
+  font-size: clamp(0.65rem, 1.4vmin, 0.75rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #8899aa;
+  transition: color 0.25s ease;
+}
+
+.gyro-toggle-btn.active {
+  background: rgba(0, 230, 140, 0.15);
+  border-color: #00ffaa;
+  box-shadow: 0 0 14px rgba(0, 255, 170, 0.35);
+}
+
+.gyro-toggle-btn.active .toggle-indicator {
+  background: #00ffaa;
+  box-shadow: 0 0 8px #00ffaa;
+}
+
+.gyro-toggle-btn.active .toggle-label {
+  color: #00ffaa;
+  text-shadow: 0 0 6px rgba(0, 255, 170, 0.5);
+}
+
+.gyro-slider-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.5vw, 14px);
+  margin-top: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.gyro-slider-row.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.gyro-slider-label {
+  font-size: clamp(0.62rem, 1.3vmin, 0.72rem);
+  font-weight: 600;
+  color: rgba(200, 220, 250, 0.85);
+  white-space: nowrap;
+}
+
+.gyro-range-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.gyro-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #64b5f6;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(100, 180, 255, 0.8);
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+.gyro-range-slider::-webkit-slider-thumb:hover,
+.gyro-range-slider::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+  background: #00ffaa;
+  box-shadow: 0 0 10px #00ffaa;
+}
+
+.gyro-val-badge {
+  font-size: clamp(0.65rem, 1.4vmin, 0.75rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #64b5f6;
+  min-width: 44px;
+  text-align: right;
+}
+
+/* Fullscreen Toggle on Mobile Landscape */
+@media (max-height: 520px) and (orientation: landscape) {
+  .fullscreen-toggle-btn {
+    top: 8px !important;
+    left: 12px !important;
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(10, 18, 34, 0.8) !important;
+  }
+  .fullscreen-toggle-btn .fs-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+}
+
+body:not(.is-mobile) #btn-fullscreen-toggle {
+  display: none !important;
+}
+
+.fullscreen-toggle-btn {
+  position: absolute;
+  top: clamp(10px, 2.5vh, 20px);
+  left: clamp(10px, 2.5vw, 20px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(34px, 7.5vmin, 44px);
+  height: clamp(34px, 7.5vmin, 44px);
+  background: rgba(15, 25, 45, 0.75);
+  border: 1.5px solid rgba(100, 190, 255, 0.4);
+  border-radius: 50%;
+  padding: 0;
+  color: #ffffff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.fullscreen-toggle-btn .fs-text {
+  display: none !important;
+}
+
+.fullscreen-toggle-btn .fs-icon {
+  width: clamp(16px, 3.6vmin, 20px);
+  height: clamp(16px, 3.6vmin, 20px);
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(100, 190, 255, 0.6));
+}
+
+.fullscreen-toggle-btn:hover,
+.fullscreen-toggle-btn:active {
+  background: rgba(30, 60, 110, 0.85);
+  border-color: rgba(140, 210, 255, 0.8);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(100, 190, 255, 0.5);
 }

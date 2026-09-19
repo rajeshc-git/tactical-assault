@@ -1,11 +1,12 @@
-const CACHE_NAME = 'tactical-assault-v1';
+const CACHE_NAME = 'tactical-assault-v4.2.0';
 
-// Install event - force activation immediately
+// Heavy static binary assets suitable for caching (models, sounds, textures, wasm)
+const STATIC_EXTENSIONS = ['.glb', '.gltf', '.mp3', '.ogg', '.wav', '.png', '.jpg', '.jpeg', '.webp', '.wasm'];
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - claim all open clients immediately & clear old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
@@ -14,7 +15,7 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log('[ServiceWorker] Removing old cache:', cacheName);
+              console.log('[SW] Purging outdated cache store:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -24,49 +25,56 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Cache-First with Network Update Strategy (caches both local and raw GitHub game models)
 self.addEventListener('fetch', (event) => {
-  // Only handle HTTP/HTTPS GET requests
   if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
     return;
   }
 
-  const url = event.request.url;
+  const url = new URL(event.request.url);
 
-  // Exclude third-party CDN scripts/fonts (like Google Fonts) from Service Worker interception
-  // only intercept local project assets & target raw GitHub model GLBs.
-  const isLocal = url.startsWith(self.location.origin);
-  const isGithubModel = url.includes('raw.githubusercontent.com') && url.endsWith('.glb');
-
-  if (!isLocal && !isGithubModel) {
+  // Skip Vite internal dev requests & dynamic module timestamps
+  if (url.pathname.includes('/@vite/') || url.pathname.includes('/@fs/') || url.search.includes('t=')) {
     return;
   }
 
-  event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      // Query the specific cache instance directly to prevent global CacheStorage matching TypeErrors
-      return cache.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          // Return cached file immediately for instant load
-          return cachedResponse;
-        }
+  // Identify heavy static binary models, textures, sounds
+  const isStaticBinary = STATIC_EXTENSIONS.some(ext => url.pathname.endsWith(ext)) ||
+    (url.hostname === 'raw.githubusercontent.com' && url.pathname.endsWith('.glb'));
 
-        return fetch(event.request).then((networkResponse) => {
-          // Validate response before caching (opaque responses have status 0, which is normal for cross-origin assets)
-          if (!networkResponse || (networkResponse.status !== 200 && networkResponse.status !== 0)) {
-            return networkResponse;
+  if (isStaticBinary) {
+    // Cache-First for heavy static media files (3D models, audio, textures)
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+        try {
+          const networkRes = await fetch(event.request);
+          if (networkRes && (networkRes.status === 200 || networkRes.status === 0)) {
+            cache.put(event.request, networkRes.clone());
           }
-
-          // Cache the response clone for future loads
-          const responseToCache = networkResponse.clone();
-          cache.put(event.request, responseToCache);
-
-          return networkResponse;
-        }).catch(() => {
-          // Offline fallback if fetch fails
+          return networkRes;
+        } catch (e) {
+          return cached || new Response('Asset not available offline.', { status: 404 });
+        }
+      })
+    );
+  } else {
+    // STRICT NETWORK-FIRST for HTML, JavaScript, CSS, and modules
+    // Always fetch live code from server with no-cache validation so soft refreshes get new code instantly
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' })
+        .then((networkRes) => {
+          if (networkRes && networkRes.status === 200) {
+            const resClone = networkRes.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+          }
+          return networkRes;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
           return new Response('Network error occurred.', { status: 408, statusText: 'Network Error' });
-        });
-      });
-    })
-  );
+        })
+    );
+  }
 });

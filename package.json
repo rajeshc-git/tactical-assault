@@ -16,6 +16,7 @@
     "@types/three": "^0.185.3",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "assemblyscript": "^0.28.20",
+    "sharp": "^0.35.4",
     "typescript": "^7.0.2",
     "vite": "^8.2.0"
   },
