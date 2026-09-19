@@ -1910,7 +1910,7 @@ class Game {
       ak47: '/assets/weapons/sound/ak47.mp3',
       rocket: '/assets/weapons/sound/rocket.mp3',
       reload: '/assets/weapons/sound/reload.mp3',
-      dying: '/assets/weapons/sound/dying.mp3'
+      dying: '/assets/weapons/sound/dying2.mp3'
     };
 
     if (!this.audioCtx) {
