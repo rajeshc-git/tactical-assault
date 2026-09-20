@@ -38,16 +38,36 @@ body.pointer-unlocked:not(.in-game) * {
   cursor: default;
 }
 
-body {
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+body {
   font-family: var(--font);
   background: #0a0e1a;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
 canvas {
   display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
 }
 
 /* Status Panel styling */
@@ -256,8 +276,10 @@ body.is-mobile #level-banner {
   height: 100dvh;
   position: fixed;
   inset: 0;
-  /* Semi-transparent so the 3D map is visible behind */
-  background: rgba(5, 10, 20, 0.35);
+  /* Crystal transparent glass backdrop showing 3D scene smoothly behind */
+  background: rgba(10, 20, 36, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,62 +300,104 @@ body.is-mobile #level-banner {
   z-index: 0;
 }
 
+
 /* Map theme overlays */
 #blocker.theme-arctic .menu-theme-overlay {
   background:
-    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(100, 180, 255, 0.2) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(140, 200, 255, 0.12) 0%, transparent 50%);
+    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(140, 210, 255, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(180, 230, 255, 0.15) 0%, transparent 50%);
 }
 
 #blocker.theme-forest .menu-theme-overlay {
   background:
-    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(50, 180, 80, 0.2) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(80, 200, 100, 0.12) 0%, transparent 50%);
+    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(80, 220, 120, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(120, 240, 150, 0.15) 0%, transparent 50%);
 }
 
 #blocker.theme-autumn .menu-theme-overlay {
   background:
-    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(220, 160, 50, 0.2) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(255, 140, 40, 0.12) 0%, transparent 50%);
+    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(255, 180, 80, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(255, 160, 60, 0.15) 0%, transparent 50%);
 }
 
 #blocker.theme-desert .menu-theme-overlay {
   background:
-    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(220, 180, 100, 0.2) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(200, 150, 60, 0.12) 0%, transparent 50%);
+    radial-gradient(ellipse 100% 80% at 50% 30%, rgba(255, 210, 120, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(240, 180, 80, 0.15) 0%, transparent 50%);
 }
 
 /* Map-themed selected card glow colors */
 #blocker.theme-arctic .map-card.selected {
-  border-color: rgba(100, 180, 255, 0.5);
-  box-shadow: 0 0 30px rgba(100, 180, 255, 0.15), 0 0 0 1px rgba(100, 180, 255, 0.25) inset;
+  border-color: rgba(140, 215, 255, 0.85);
+  box-shadow: 0 0 30px rgba(100, 200, 255, 0.35), 0 0 0 1px rgba(140, 215, 255, 0.5) inset, inset 0 1.5px 2px rgba(255, 255, 255, 0.9);
 }
 #blocker.theme-arctic .map-card.selected .map-card-glow {
-  background: radial-gradient(ellipse at 50% 80%, rgba(100, 180, 255, 0.15) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 80%, rgba(140, 215, 255, 0.25) 0%, transparent 60%);
 }
 
 #blocker.theme-forest .map-card.selected {
-  border-color: rgba(50, 200, 80, 0.5);
-  box-shadow: 0 0 30px rgba(50, 200, 80, 0.15), 0 0 0 1px rgba(50, 200, 80, 0.25) inset;
+  border-color: rgba(80, 235, 120, 0.85);
+  box-shadow: 0 0 30px rgba(80, 235, 120, 0.35), 0 0 0 1px rgba(80, 235, 120, 0.5) inset, inset 0 1.5px 2px rgba(255, 255, 255, 0.9);
 }
 #blocker.theme-forest .map-card.selected .map-card-glow {
-  background: radial-gradient(ellipse at 50% 80%, rgba(50, 200, 80, 0.15) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 80%, rgba(80, 235, 120, 0.25) 0%, transparent 60%);
 }
 
 #blocker.theme-autumn .map-card.selected {
-  border-color: rgba(255, 160, 50, 0.5);
-  box-shadow: 0 0 30px rgba(255, 160, 50, 0.15), 0 0 0 1px rgba(255, 160, 50, 0.25) inset;
+  border-color: rgba(255, 180, 80, 0.85);
+  box-shadow: 0 0 30px rgba(255, 180, 80, 0.35), 0 0 0 1px rgba(255, 180, 80, 0.5) inset, inset 0 1.5px 2px rgba(255, 255, 255, 0.9);
 }
 #blocker.theme-autumn .map-card.selected .map-card-glow {
-  background: radial-gradient(ellipse at 50% 80%, rgba(255, 160, 50, 0.15) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 180, 80, 0.25) 0%, transparent 60%);
 }
 
 #blocker.theme-desert .map-card.selected {
-  border-color: rgba(220, 180, 80, 0.5);
-  box-shadow: 0 0 30px rgba(220, 180, 80, 0.15), 0 0 0 1px rgba(220, 180, 80, 0.25) inset;
+  border-color: rgba(255, 205, 100, 0.85);
+  box-shadow: 0 0 30px rgba(255, 205, 100, 0.35), 0 0 0 1px rgba(255, 205, 100, 0.5) inset, inset 0 1.5px 2px rgba(255, 255, 255, 0.9);
 }
 #blocker.theme-desert .map-card.selected .map-card-glow {
-  background: radial-gradient(ellipse at 50% 80%, rgba(220, 180, 80, 0.15) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 205, 100, 0.25) 0%, transparent 60%);
+}
+
+/* Map-themed dynamic title-accent ("ASSAULT") & divider lines */
+#blocker.theme-arctic .title-accent {
+  background: linear-gradient(135deg, #00d2ff 0%, #0099ff 40%, #0066cc 80%, #004499 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+#blocker.theme-arctic .title-line {
+  background: linear-gradient(90deg, transparent, rgba(0, 168, 255, 0.75), transparent) !important;
+}
+
+#blocker.theme-forest .title-accent {
+  background: linear-gradient(135deg, #00e68c 0%, #00b359 40%, #008f3d 80%, #006622 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+#blocker.theme-forest .title-line {
+  background: linear-gradient(90deg, transparent, rgba(0, 200, 100, 0.75), transparent) !important;
+}
+
+#blocker.theme-autumn .title-accent {
+  background: linear-gradient(135deg, #ff9f43 0%, #ff6b35 45%, #e84118 80%, #c23616 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+#blocker.theme-autumn .title-line {
+  background: linear-gradient(90deg, transparent, rgba(255, 120, 50, 0.75), transparent) !important;
+}
+
+#blocker.theme-desert .title-accent {
+  background: linear-gradient(135deg, #ffd32a 0%, #ffa801 40%, #e67e22 75%, #d35400 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+#blocker.theme-desert .title-line {
+  background: linear-gradient(90deg, transparent, rgba(245, 175, 40, 0.75), transparent) !important;
 }
 
 /* Floating Particles */
@@ -347,7 +411,7 @@ body.is-mobile #level-banner {
 .particle {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(100, 180, 255, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(140, 210, 255, 0.5) 0%, transparent 70%);
   animation: particleFloat linear infinite;
   opacity: 0;
 }
@@ -369,7 +433,7 @@ body.is-mobile #level-banner {
 .menu-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 65% 60% at center, transparent 45%, rgba(0, 0, 0, 0.4) 100%);
+  background: radial-gradient(ellipse 70% 65% at center, transparent 50%, rgba(0, 0, 0, 0.25) 100%);
   pointer-events: none;
 }
 
@@ -381,13 +445,13 @@ body.is-mobile #level-banner {
 .blocker-content {
   position: relative;
   z-index: 1;
-  background: linear-gradient(165deg, rgba(15, 25, 50, 0.8) 0%, rgba(10, 18, 35, 0.9) 100%);
-  border: 1px solid rgba(100, 170, 255, 0.18);
-  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(240, 248, 255, 0.12) 60%, rgba(225, 245, 255, 0.18) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-radius: 20px;
   padding: clamp(12px, 2vh, 18px) clamp(16px, 2.5vw, 30px);
   text-align: center;
-  backdrop-filter: blur(12px) saturate(1.1);
-  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
   max-width: 840px;
   width: 92%;
   max-height: 96vh;
@@ -396,9 +460,10 @@ body.is-mobile #level-banner {
   -ms-overflow-style: none;
   margin-top: 0;
   box-shadow:
-    0 30px 90px rgba(0, 0, 0, 0.7),
-    0 0 80px rgba(60, 120, 200, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    0 24px 70px rgba(0, 0, 0, 0.35),
+    0 0 40px rgba(255, 255, 255, 0.12),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.15);
   animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -433,11 +498,12 @@ body.is-mobile #level-banner {
   font-weight: 800;
   letter-spacing: 0.12em;
   line-height: 1.15;
-  background: linear-gradient(180deg, #ffffff 0%, #c8daf0 40%, #8ab4e0 100%);
+  color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #eef5ff 60%, #d6e8fa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7)), drop-shadow(0 0 14px rgba(100, 180, 255, 0.35));
 }
 
 .title-accent {
@@ -459,8 +525,9 @@ body.is-mobile #level-banner {
 
 .subtitle {
   font-size: 0.78rem;
-  color: rgba(160, 185, 220, 0.7);
-  font-weight: 500;
+  color: #e0f0ff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 50, 100, 0.3);
+  font-weight: 700;
   letter-spacing: 0.25em;
   margin-bottom: 0;
 }
@@ -475,11 +542,14 @@ body.is-mobile #level-banner {
 
 .map-card {
   position: relative;
-  background: rgba(20, 35, 65, 0.5);
-  border: 1px solid rgba(100, 170, 255, 0.08);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
   border-radius: 14px;
   padding: 1.2rem 0.6rem 1rem;
   cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 1.5px rgba(255, 255, 255, 0.5);
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
@@ -490,16 +560,16 @@ body.is-mobile #level-banner {
   border-radius: inherit;
   opacity: 0;
   transition: opacity 0.4s;
-  background: radial-gradient(ellipse at 50% 80%, rgba(100, 180, 255, 0.1) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 255, 255, 0.2) 0%, transparent 60%);
 }
 
 .map-card:hover {
-  border-color: rgba(100, 180, 255, 0.3);
-  background: rgba(25, 45, 80, 0.6);
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.26);
   transform: translateY(-5px);
   box-shadow:
-    0 16px 48px rgba(60, 130, 220, 0.15),
-    0 0 0 1px rgba(100, 180, 255, 0.15) inset;
+    0 16px 40px rgba(0, 150, 255, 0.25),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.85);
 }
 
 .map-card:hover .map-card-glow {
@@ -507,16 +577,17 @@ body.is-mobile #level-banner {
 }
 
 .map-card.selected {
-  border-color: rgba(255, 120, 50, 0.5);
-  background: rgba(255, 100, 40, 0.06);
+  border-color: rgba(255, 120, 50, 0.9);
+  background: rgba(255, 255, 255, 0.32);
   box-shadow:
-    0 0 30px rgba(255, 100, 40, 0.15),
-    0 0 0 1px rgba(255, 120, 50, 0.25) inset;
+    0 0 32px rgba(255, 120, 50, 0.4),
+    0 0 0 1px rgba(255, 120, 50, 0.5) inset,
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.9);
 }
 
 .map-card.selected .map-card-glow {
   opacity: 1;
-  background: radial-gradient(ellipse at 50% 80%, rgba(255, 120, 50, 0.12) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 80%, rgba(255, 120, 50, 0.2) 0%, transparent 60%);
 }
 
 .map-card-icon {
@@ -531,18 +602,30 @@ body.is-mobile #level-banner {
 }
 
 .map-card-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: rgba(220, 235, 255, 0.95);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1e3045;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
   letter-spacing: 0.03em;
   margin-bottom: 0.3rem;
 }
 
+.map-card.selected .map-card-name {
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
 .map-card-desc {
-  font-size: 0.65rem;
-  color: rgba(150, 175, 210, 0.65);
-  font-weight: 400;
+  font-size: 0.66rem;
+  color: #4a6580;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  font-weight: 500;
   line-height: 1.3;
+}
+
+.map-card.selected .map-card-desc {
+  color: #e0f0ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .map-card-tag {
@@ -551,7 +634,7 @@ body.is-mobile #level-banner {
   font-weight: 700;
   letter-spacing: 0.12em;
   color: rgba(255, 140, 60, 0.9);
-  text-shadow: 0 0 10px rgba(255, 120, 50, 0.3);
+  text-shadow: 0 0 10px rgba(255, 120, 50, 0.4);
 }
 
 /* ---- Controls Section ---- */
@@ -566,11 +649,11 @@ body.is-mobile #level-banner {
 
 .quality-section-title {
   font-size: clamp(0.72rem, 1.6vmin, 0.82rem);
-  color: rgba(160, 205, 255, 0.9);
-  font-weight: 700;
+  color: #e0f0ff;
+  font-weight: 800;
   letter-spacing: 0.15em;
   margin-bottom: 6px;
-  text-shadow: 0 0 10px rgba(100, 180, 255, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 50, 100, 0.3);
 }
 
 .quality-button-group {
@@ -582,8 +665,8 @@ body.is-mobile #level-banner {
 .quality-btn {
   flex: 1;
   max-width: 220px;
-  background: rgba(15, 28, 52, 0.75);
-  border: 1.5px solid rgba(100, 170, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
   border-radius: 12px;
   padding: clamp(8px, 1.4vh, 12px) clamp(10px, 2vw, 16px);
   cursor: pointer;
@@ -591,6 +674,9 @@ body.is-mobile #level-banner {
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.5);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   color: #fff;
   user-select: none;
@@ -599,16 +685,16 @@ body.is-mobile #level-banner {
 }
 
 .quality-btn:hover {
-  background: rgba(30, 55, 95, 0.9);
-  border-color: rgba(100, 190, 255, 0.6);
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.75);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(30, 100, 200, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 160, 255, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.7);
 }
 
 .quality-btn.selected {
-  background: radial-gradient(circle at 50% 0%, rgba(0, 230, 140, 0.28) 0%, rgba(15, 40, 70, 0.95) 100%);
-  border-color: rgba(0, 230, 140, 0.85);
-  box-shadow: 0 0 24px rgba(0, 230, 140, 0.35), inset 0 0 12px rgba(0, 230, 140, 0.2);
+  background: rgba(255, 255, 255, 0.35);
+  border-color: #ffffff;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2), inset 0 1.5px 2px rgba(255, 255, 255, 0.95);
 }
 
 .quality-btn .q-icon {
@@ -617,20 +703,27 @@ body.is-mobile #level-banner {
 
 .quality-btn .q-name {
   font-size: clamp(0.72rem, 1.6vmin, 0.84rem);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.04em;
-  color: #ffffff;
+  color: #1e3045;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
 }
 
 .quality-btn.selected .q-name {
-  color: #00ffaa;
-  text-shadow: 0 0 10px rgba(0, 255, 170, 0.6);
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.quality-btn.selected .q-desc {
+  color: #e0f0ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .quality-btn .q-desc {
   font-size: clamp(0.55rem, 1.2vmin, 0.65rem);
-  color: rgba(160, 190, 225, 0.7);
-  font-weight: 400;
+  color: #5a7a95;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  font-weight: 500;
 }
 
 .controls-section {
@@ -739,8 +832,9 @@ body.is-mobile #level-banner {
 .deploy-hint {
   margin-top: 0.6rem;
   font-size: 0.65rem;
-  color: rgba(150, 175, 210, 0.35);
-  font-weight: 400;
+  color: #e0f0ff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 50, 100, 0.3);
+  font-weight: 500;
   letter-spacing: 0.08em;
 }
 
@@ -1146,6 +1240,17 @@ body:not(.in-game) #hud {
 
 .inventory-slot.active .slot-gun-img {
   transform: scale(1.08);
+}
+
+/* Responsively upscale ONLY the square rocket launcher PNG to match rifles */
+.slot-gun-img.slot-gun-rocket {
+  max-height: clamp(30px, 5.8vh, 38px);
+  transform: scale(1.35);
+  transform-origin: center center;
+}
+
+.inventory-slot.active .slot-gun-img.slot-gun-rocket {
+  transform: scale(1.48);
 }
 
 .slot-item-emoji {
@@ -1795,9 +1900,11 @@ body.is-mobile .controls-section {
     padding: 20px 28px;
     margin-top: 0;
     border-radius: 20px;
-    background: linear-gradient(165deg, rgba(14, 24, 46, 0.92) 0%, rgba(8, 15, 30, 0.97) 100%);
-    border: 1.5px solid rgba(100, 185, 255, 0.35);
-    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 150, 255, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(240, 248, 255, 0.14) 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(28px) saturate(1.8);
+    -webkit-backdrop-filter: blur(28px) saturate(1.8);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35), 0 0 40px rgba(255, 255, 255, 0.15), inset 0 1.5px 2px rgba(255, 255, 255, 0.7);
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -1839,8 +1946,9 @@ body.is-mobile .controls-section {
   .subtitle {
     font-size: 0.76rem;
     letter-spacing: 0.22em;
-    color: rgba(160, 190, 230, 0.85);
-    font-weight: 700;
+    color: #e0f0ff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    font-weight: 800;
   }
 
   #map-select-grid {
@@ -1852,14 +1960,18 @@ body.is-mobile .controls-section {
   .map-card {
     padding: 14px 10px 12px;
     border-radius: 12px;
-    background: rgba(20, 35, 65, 0.55);
-    border: 1.5px solid rgba(100, 180, 255, 0.2);
+    background: rgba(255, 255, 255, 0.14);
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.5);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .map-card:hover, .map-card:active {
     transform: translateY(-2px);
-    background: rgba(26, 46, 82, 0.7);
+    background: rgba(255, 255, 255, 0.26);
+    border-color: rgba(255, 255, 255, 0.75);
   }
 
   .map-card-icon {
@@ -1871,13 +1983,15 @@ body.is-mobile .controls-section {
     font-size: 0.84rem;
     font-weight: 800;
     margin-bottom: 3px;
-    color: #ffffff;
+    color: #1e3045;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
   }
 
   .map-card-desc {
     font-size: 0.66rem;
     line-height: 1.25;
-    color: rgba(160, 185, 220, 0.8);
+    color: #4a6580;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
   }
 
   #graphics-select-section {
@@ -1889,15 +2003,18 @@ body.is-mobile .controls-section {
     letter-spacing: 0.12em;
     margin-bottom: 6px;
     font-weight: 800;
-    color: #9cd0ff;
+    color: #e0f0ff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   }
 
   .quality-button-group {
     gap: 10px;
-    background: rgba(8, 16, 32, 0.6);
+    background: rgba(255, 255, 255, 0.12);
     padding: 4px;
     border-radius: 12px;
-    border: 1px solid rgba(100, 180, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
   .quality-btn {
@@ -1926,13 +2043,18 @@ body.is-mobile .controls-section {
     margin: 8px auto 14px;
     padding: 10px 18px;
     border-radius: 14px;
-    background: rgba(15, 28, 52, 0.65);
-    border: 1.5px solid rgba(100, 180, 255, 0.25);
+    background: rgba(255, 255, 255, 0.14);
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 1.5px rgba(255, 255, 255, 0.55);
   }
 
   .gyro-title {
     font-size: 0.78rem;
     font-weight: 800;
+    color: #1e3045;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
   }
 
   .gyro-slider-row {
@@ -1963,7 +2085,8 @@ body.is-mobile .controls-section {
   .deploy-hint {
     font-size: 0.64rem;
     margin-top: 5px;
-    color: rgba(160, 190, 230, 0.6);
+    color: rgba(220, 238, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   }
 }
 
@@ -1992,9 +2115,11 @@ body.is-mobile .controls-section {
     padding: 10px 16px;
     margin: 0;
     border-radius: 16px;
-    background: linear-gradient(165deg, rgba(11, 20, 38, 0.94) 0%, rgba(6, 12, 24, 0.98) 100%);
-    border: 1.5px solid rgba(100, 185, 255, 0.35);
-    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 150, 255, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(240, 248, 255, 0.12) 60%, rgba(225, 245, 255, 0.18) 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(28px) saturate(1.8);
+    -webkit-backdrop-filter: blur(28px) saturate(1.8);
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35), 0 0 30px rgba(255, 255, 255, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.6);
     overflow: hidden !important; /* Zero scrolling needed in split HUD! */
   }
 
@@ -2008,7 +2133,7 @@ body.is-mobile .controls-section {
     gap: 8px;
     margin: 0 0 2px 0 !important;
     padding: 0 0 4px 0;
-    border-bottom: 1px solid rgba(100, 180, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
     text-align: left;
   }
 
@@ -2032,9 +2157,6 @@ body.is-mobile .controls-section {
 
   .title-accent {
     font-size: 1.1rem !important;
-    background: linear-gradient(135deg, #ff7b54, #ff2d55);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
   }
 
   .title-line {
@@ -2045,12 +2167,12 @@ body.is-mobile .controls-section {
     display: inline-block !important;
     font-size: 0.56rem !important;
     letter-spacing: 0.14em !important;
-    color: #00e5ff !important;
-    text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+    color: #e0f0ff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
     margin: 0 0 0 auto !important;
     padding: 2px 8px;
-    background: rgba(0, 229, 255, 0.1);
-    border: 1px solid rgba(0, 229, 255, 0.25);
+    background: rgba(10, 25, 45, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 20px;
     font-weight: 800;
   }
@@ -2072,9 +2194,11 @@ body.is-mobile .controls-section {
     gap: 8px !important;
     padding: 7px 9px !important;
     border-radius: 9px !important;
-    background: rgba(18, 32, 60, 0.65) !important;
-    border: 1px solid rgba(100, 180, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.14) !important;
+    border: 1px solid rgba(255, 255, 255, 0.32) !important;
     text-align: left !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     overflow: hidden;
   }
@@ -2084,9 +2208,24 @@ body.is-mobile .controls-section {
   }
 
   .map-card.selected {
-    background: rgba(0, 212, 255, 0.15) !important;
-    border-color: #00e5ff !important;
-    box-shadow: 0 0 16px rgba(0, 229, 255, 0.35), inset 0 0 10px rgba(0, 229, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+
+  #blocker.theme-arctic .map-card.selected {
+    border-color: rgba(140, 215, 255, 0.95) !important;
+    box-shadow: 0 0 20px rgba(100, 200, 255, 0.5), inset 0 0 0 1px rgba(140, 215, 255, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.95) !important;
+  }
+  #blocker.theme-forest .map-card.selected {
+    border-color: rgba(80, 235, 120, 0.95) !important;
+    box-shadow: 0 0 20px rgba(80, 235, 120, 0.5), inset 0 0 0 1px rgba(80, 235, 120, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.95) !important;
+  }
+  #blocker.theme-autumn .map-card.selected {
+    border-color: rgba(255, 180, 80, 0.95) !important;
+    box-shadow: 0 0 20px rgba(255, 180, 80, 0.5), inset 0 0 0 1px rgba(255, 180, 80, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.95) !important;
+  }
+  #blocker.theme-desert .map-card.selected {
+    border-color: rgba(255, 205, 100, 0.95) !important;
+    box-shadow: 0 0 20px rgba(255, 205, 100, 0.5), inset 0 0 0 1px rgba(255, 205, 100, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.95) !important;
   }
 
   .map-card-icon {
@@ -2096,23 +2235,24 @@ body.is-mobile .controls-section {
   }
 
   .map-card-name {
-    font-size: 0.72rem !important;
+    font-size: 0.74rem !important;
     font-weight: 800 !important;
     margin: 0 !important;
-    line-height: 1.1 !important;
-    color: #ffffff !important;
-  }
-
-  .map-card-desc {
-    display: block !important;
-    font-size: 0.52rem !important;
-    line-height: 1.1 !important;
-    color: rgba(175, 205, 240, 0.75) !important;
-    margin-top: 1px !important;
+    line-height: 1.2 !important;
+    color: #1e3045 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    max-width: 100px !important;
+  }
+
+  .map-card.selected .map-card-name {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  .map-card-desc {
+    display: none !important;
   }
 
   /* Left Column: Deploy / Resume Button */
@@ -2161,7 +2301,8 @@ body.is-mobile .controls-section {
   .quality-section-title {
     font-size: 0.58rem !important;
     letter-spacing: 0.12em !important;
-    color: #8cc8ff !important;
+    color: #e0f0ff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
     font-weight: 800 !important;
     margin: 0 0 4px 0 !important;
   }
@@ -2169,10 +2310,12 @@ body.is-mobile .controls-section {
   .quality-button-group {
     display: flex !important;
     gap: 5px !important;
-    background: rgba(8, 15, 30, 0.75) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
     padding: 3px !important;
     border-radius: 8px !important;
-    border: 1px solid rgba(100, 180, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
   }
 
   .quality-btn {
@@ -2197,6 +2340,8 @@ body.is-mobile .controls-section {
     font-size: 0.65rem !important;
     font-weight: 800 !important;
     line-height: 1 !important;
+    color: #1e3045 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;
   }
 
   .quality-btn .q-desc {
@@ -2204,9 +2349,14 @@ body.is-mobile .controls-section {
   }
 
   .quality-btn.selected {
-    background: rgba(0, 230, 140, 0.22) !important;
-    border-color: #00e68c !important;
-    box-shadow: 0 0 12px rgba(0, 230, 140, 0.35) !important;
+    background: rgba(255, 255, 255, 0.35) !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+  }
+
+  .quality-btn.selected .q-name {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
   }
 
   /* Right Column: Gyroscope Aiming Panel */
@@ -2219,9 +2369,11 @@ body.is-mobile .controls-section {
     margin: 0 !important;
     padding: 10px 12px !important;
     border-radius: 11px !important;
-    background: rgba(13, 24, 46, 0.8) !important;
-    border: 1.5px solid rgba(100, 185, 255, 0.25) !important;
-    box-shadow: inset 0 0 12px rgba(0, 150, 255, 0.06) !important;
+    background: rgba(255, 255, 255, 0.14) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
   }
 
   .gyro-section-header {
@@ -2232,7 +2384,8 @@ body.is-mobile .controls-section {
     font-size: 0.68rem !important;
     font-weight: 800 !important;
     letter-spacing: 0.1em !important;
-    color: #a0cdff !important;
+    color: #1e3045 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4) !important;
   }
 
   .gyro-toggle-btn {
@@ -2259,28 +2412,35 @@ body.is-mobile .controls-section {
 
   .gyro-slider-label {
     font-size: 0.62rem !important;
-    font-weight: 700 !important;
-    color: rgba(200, 225, 255, 0.85) !important;
+    font-weight: 800 !important;
+    color: #1e3045 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5) !important;
   }
 
   .gyro-range-slider {
     height: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15) !important;
   }
 
   .gyro-range-slider::-webkit-slider-thumb {
     width: 20px !important;
     height: 20px !important;
-    background: #00e5ff !important;
+    background: #ffffff !important;
     border: 2px solid #ffffff !important;
-    box-shadow: 0 0 10px rgba(0, 229, 255, 0.8) !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 2px 6px rgba(0, 0, 0, 0.35) !important;
   }
 
   .gyro-val-badge {
     font-size: 0.72rem !important;
     font-weight: 900 !important;
-    color: #00e5ff !important;
+    color: #1a4971 !important;
     min-width: 38px !important;
-    text-shadow: 0 0 8px rgba(0, 229, 255, 0.5) !important;
+    background: rgba(255, 255, 255, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-radius: 6px !important;
+    padding: 1px 4px !important;
+    text-shadow: none !important;
   }
 
   .controls-section {
@@ -2749,16 +2909,16 @@ body.is-mobile #controls-panel {
 #gyro-settings-section {
   display: none;
 
-  background: rgba(15, 28, 52, 0.65);
-  border: 1px solid rgba(100, 170, 255, 0.22);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
   padding: clamp(8px, 1.4vh, 12px) clamp(12px, 2vw, 18px);
   margin: clamp(6px, 1.2vh, 12px) auto clamp(10px, 1.8vh, 16px);
   max-width: 620px;
   width: 100%;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 1.5px rgba(255, 255, 255, 0.55);
 }
 
 /* Show Gyroscope controls ONLY on mobile & tablet devices with touch & sensor capability */
@@ -2795,18 +2955,18 @@ body:not(.is-mobile) #gyro-settings-section {
 
 .gyro-title {
   font-size: clamp(0.7rem, 1.5vmin, 0.8rem);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.12em;
-  color: #a0cdff;
-  text-shadow: 0 0 10px rgba(100, 180, 255, 0.3);
+  color: #1e3045;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
 .gyro-toggle-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
   border-radius: 20px;
   padding: 3px 10px 3px 6px;
   cursor: pointer;
@@ -2816,14 +2976,15 @@ body:not(.is-mobile) #gyro-settings-section {
 }
 
 .gyro-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .gyro-toggle-btn .toggle-indicator {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #667788;
+  background: #7a8fa6;
   transition: all 0.25s ease;
 }
 
@@ -2831,24 +2992,25 @@ body:not(.is-mobile) #gyro-settings-section {
   font-size: clamp(0.65rem, 1.4vmin, 0.75rem);
   font-weight: 800;
   letter-spacing: 0.05em;
-  color: #8899aa;
+  color: #c8dcfa;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   transition: color 0.25s ease;
 }
 
 .gyro-toggle-btn.active {
-  background: rgba(0, 230, 140, 0.15);
-  border-color: #00ffaa;
-  box-shadow: 0 0 14px rgba(0, 255, 170, 0.35);
+  background: rgba(255, 255, 255, 0.35);
+  border-color: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .gyro-toggle-btn.active .toggle-indicator {
-  background: #00ffaa;
-  box-shadow: 0 0 8px #00ffaa;
+  background: #00e68c;
+  box-shadow: 0 0 8px rgba(0, 230, 140, 0.8);
 }
 
 .gyro-toggle-btn.active .toggle-label {
-  color: #00ffaa;
-  text-shadow: 0 0 6px rgba(0, 255, 170, 0.5);
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .gyro-slider-row {
@@ -2866,8 +3028,9 @@ body:not(.is-mobile) #gyro-settings-section {
 
 .gyro-slider-label {
   font-size: clamp(0.62rem, 1.3vmin, 0.72rem);
-  font-weight: 600;
-  color: rgba(200, 220, 250, 0.85);
+  font-weight: 800;
+  color: #1e3045;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
   white-space: nowrap;
 }
 
@@ -2876,8 +3039,10 @@ body:not(.is-mobile) #gyro-settings-section {
   height: 6px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
   outline: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -2886,28 +3051,42 @@ body:not(.is-mobile) #gyro-settings-section {
 .gyro-range-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: #64b5f6;
+  background: #ffffff;
   border: 2px solid #ffffff;
-  box-shadow: 0 0 8px rgba(100, 180, 255, 0.8);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.35);
   cursor: pointer;
-  transition: transform 0.15s, background-color 0.15s;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.gyro-range-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
 }
 
 .gyro-range-slider::-webkit-slider-thumb:hover,
 .gyro-range-slider::-webkit-slider-thumb:active {
-  transform: scale(1.2);
-  background: #00ffaa;
-  box-shadow: 0 0 10px #00ffaa;
+  transform: scale(1.18);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 1), 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .gyro-val-badge {
   font-size: clamp(0.65rem, 1.4vmin, 0.75rem);
-  font-weight: 800;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
-  color: #64b5f6;
+  color: #1a4971;
   min-width: 44px;
-  text-align: right;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  padding: 1px 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }

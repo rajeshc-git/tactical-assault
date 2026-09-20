@@ -135,6 +135,7 @@ class TerrainChunk {
     const pos = geo.attributes.position;
     const count = pos.count;
 
+    let minY = Infinity;
     for (let i = 0; i < count; i++) {
       const localX = pos.getX(i);
       const localZ = pos.getZ(i);
@@ -142,6 +143,7 @@ class TerrainChunk {
       const worldZ = startZ + localZ + half;
       const y = this.game.generateHeight(worldX, worldZ);
       pos.setY(i, y);
+      if (y < minY) minY = y;
     }
     geo.computeVertexNormals();
 
@@ -180,6 +182,29 @@ class TerrainChunk {
     this.mesh.castShadow = true;
     this.scene.add(this.mesh);
 
+    // Procedural Lake Water Plane (Zero FPS impact using shared geometry and material)
+    const waterLevel = (this.game.mapConfig && this.game.mapConfig.waterLevel) || 20;
+    if (minY <= waterLevel + 1.5) {
+      if (!this.game._sharedWaterGeo) {
+        this.game._sharedWaterGeo = new THREE.PlaneGeometry(size, size, 1, 1);
+        this.game._sharedWaterGeo.rotateX(-Math.PI / 2);
+      }
+      if (!this.game._waterMat) {
+        this.game._waterMat = new THREE.MeshStandardMaterial({
+          color: (this.game.mapConfig && this.game.mapConfig.waterColor) || 0x1a6b99,
+          roughness: (this.game.mapConfig && this.game.mapConfig.waterRoughness) || 0.14,
+          metalness: 0.82,
+          transparent: true,
+          opacity: (this.game.mapConfig && this.game.mapConfig.waterOpacity) || 0.85,
+          depthWrite: false
+        });
+      }
+      const waterMesh = new THREE.Mesh(this.game._sharedWaterGeo, this.game._waterMat);
+      waterMesh.position.set(0, waterLevel, 0);
+      waterMesh.receiveShadow = true;
+      this.mesh.add(waterMesh);
+    }
+
     if (this.lod < 2) {
       this.createTacticalCover();
       this.createGroundItems();
@@ -204,8 +229,9 @@ class TerrainChunk {
         const worldZ = startZ + z + this.game.wasm.noise(startZ + z, startX + x) * 15;
         const y = this.game.getHeightAt(worldX, worldZ);
         const hr = y / this.game.MAX_HEIGHT;
+        const waterLvl = (this.game.mapConfig && this.game.mapConfig.waterLevel) || 20;
 
-        if (hr > treeRange[0] && hr < treeRange[1]) {
+        if (y > waterLvl + 1.6 && hr > treeRange[0] && hr < treeRange[1]) {
           const dx = this.game.getHeightAt(worldX + 2, worldZ) - this.game.getHeightAt(worldX - 2, worldZ);
           const dz = this.game.getHeightAt(worldX, worldZ + 2) - this.game.getHeightAt(worldX, worldZ - 2);
           const slope = Math.sqrt(dx * dx + dz * dz) / 4;
@@ -299,9 +325,9 @@ class TerrainChunk {
     const coverGroup = new THREE.Group();
     this.coverObstacles = [];
 
-    // Dynamic cover obstacle placement based on graphics quality
-    const step = this.game.coverStep || (this.game.graphicsQuality === 'low' ? 240 : (this.game.graphicsQuality === 'medium' ? 140 : 90));
-    const threshold = this.game.graphicsQuality === 'low' ? 0.35 : (this.game.graphicsQuality === 'medium' ? 0.18 : 0.06);
+    // Dynamic cover obstacle placement based on graphics quality (~80% reduction in low mode)
+    const step = this.game.coverStep || (this.game.graphicsQuality === 'low' ? 180 : (this.game.graphicsQuality === 'medium' ? 140 : 90));
+    const threshold = this.game.graphicsQuality === 'low' ? 0.32 : (this.game.graphicsQuality === 'medium' ? 0.18 : 0.06);
     for (let x = 30; x < size; x += step) {
       for (let z = 30; z < size; z += step) {
         const nVal = this.game.wasm.noise(startX + x * 0.05, startZ + z * 0.05);
@@ -310,8 +336,9 @@ class TerrainChunk {
           const worldZ = startZ + z + (this.game.wasm.noise(startZ + z * 3, startX + x * 3) * 20);
           const y = this.game.getHeightAt(worldX, worldZ);
           const hr = y / this.game.MAX_HEIGHT;
+          const waterLvl = (this.game.mapConfig && this.game.mapConfig.waterLevel) || 20;
 
-          if (hr > 0.08 && hr < 0.75) {
+          if (y > waterLvl + 1.2 && hr > 0.08 && hr < 0.75) {
             // Generate full-range [-1, 1] noise value for index selection and rotation to fix the 2-model mixing bug
             const seedNoise = this.game.wasm.noise(worldX * 0.12, worldZ * 0.12);
 
@@ -339,41 +366,12 @@ class TerrainChunk {
             coverGroup.add(coverObj);
 
             // Retrieve selected GLTF model metadata to scale collision properties
-            const normalizedNoise = (seedNoise + 1) / 2;
-            const modelIndex = Math.floor(normalizedNoise * this.game.obstacleGltfs.length) % this.game.obstacleGltfs.length;
-            const selectedGltf = this.game.obstacleGltfs[modelIndex];
-            const isObst1 = selectedGltf && (selectedGltf as any).isObsticle1;
-            const isObst2 = selectedGltf && (selectedGltf as any).isObsticle2;
-
-            let targetScale = 12.0 + normalizedNoise * 4.0;
-            if (isObst1) {
-              targetScale *= 3.0;
-            } else if (isObst2) {
-              targetScale *= 2.0;
-            }
+            const selectedGltf = this.getTreeGltf(mapId, seedNoise);
+            const targetScale = this.getTreeScale(mapId, seedNoise);
 
             if (selectedGltf) {
-              if (isObst1) {
-                // Giant solid boulder: single wide central collision circle
-                this.coverObstacles.push({ x: worldX, z: worldZ, radius: targetScale * 0.38 });
-              } else if (isObst2) {
-                // Arch/Gate: two separate collision circles on the left & right pillars
-                // Compute local pillar offset along local X-axis (width X:1.90), rotated by the gate's world orientation
-                const localOffsetVec = new THREE.Vector3(targetScale * 0.78, 0, 0);
-                localOffsetVec.applyQuaternion(coverObj.quaternion);
-
-                const leftX = worldX - localOffsetVec.x;
-                const leftZ = worldZ - localOffsetVec.z;
-                const rightX = worldX + localOffsetVec.x;
-                const rightZ = worldZ + localOffsetVec.z;
-
-                // Push Left Pillar/Guardhouse (thicker/wider side) and Right Pillar collisions
-                this.coverObstacles.push({ x: leftX, z: leftZ, radius: targetScale * 0.40 });
-                this.coverObstacles.push({ x: rightX, z: rightZ, radius: targetScale * 0.30 });
-              } else {
-                const obsRadius = mapId === 'arctic' ? 7.5 : (mapId === 'forest' ? 7.0 : 8.0);
-                this.coverObstacles.push({ x: worldX, z: worldZ, radius: obsRadius });
-              }
+              const obsRadius = Math.max(3.0, targetScale * 0.28);
+              this.coverObstacles.push({ x: worldX, z: worldZ, radius: obsRadius });
             } else {
               const obsRadius = mapId === 'arctic' ? 7.5 : (mapId === 'forest' ? 7.0 : 8.0);
               this.coverObstacles.push({ x: worldX, z: worldZ, radius: obsRadius });
@@ -389,33 +387,42 @@ class TerrainChunk {
     }
   }
 
-  buildCoverModel(mapId: string, noiseVal: number = 0, lod: number = 0) {
-    if (this.game.obstacleGltfs && this.game.obstacleGltfs.length > 0) {
-      const group = new THREE.Group();
-
-      // Determine index based on noise value (scale from [-1, 1] to [0, length-1])
+  getTreeGltf(mapId: string, noiseVal: number = 0): any {
+    const list = this.game.treeGltfs ? this.game.treeGltfs[mapId] : null;
+    if (!list) return null;
+    if (Array.isArray(list)) {
+      if (list.length === 0) return null;
       const normalizedNoise = (noiseVal + 1) / 2;
-      const index = Math.floor(normalizedNoise * this.game.obstacleGltfs.length) % this.game.obstacleGltfs.length;
-      const selectedGltf = this.game.obstacleGltfs[index];
+      const index = Math.floor(normalizedNoise * list.length) % list.length;
+      return list[index];
+    }
+    return list;
+  }
 
-      // Scale is also deterministic based on the noise value (12 to 16, or 36 to 48 for obsticle1)
-      let targetScale = 12.0 + normalizedNoise * 4.0;
-      const isObst1 = (selectedGltf as any).isObsticle1;
-      const isObst2 = (selectedGltf as any).isObsticle2;
+  getTreeScale(mapId: string, noiseVal: number = 0): number {
+    const normalizedNoise = (noiseVal + 1) / 2;
+    const baseScale = 12.0 + normalizedNoise * 4.0;
+    // Increased scale for arctic, green (forest), and autumn trees; desert tree remains unchanged
+    if (mapId === 'arctic' || mapId === 'forest' || mapId === 'autumn') {
+      return baseScale * 1.8;
+    }
+    return baseScale;
+  }
 
-      if (isObst1) {
-        targetScale *= 3.0; // Thrice the size for obsticle1
-      } else if (isObst2) {
-        targetScale *= 2.0; // Double the size for obsticle2
-      }
+  buildCoverModel(mapId: string, noiseVal: number = 0, lod: number = 0) {
+    const treeGltf = this.getTreeGltf(mapId, noiseVal);
 
-      // LOD: If the chunk is distant (LOD > 0), use a simplified "flat-colored" thumbnail proxy of the actual model geometry
+    if (treeGltf) {
+      const group = new THREE.Group();
+      const targetScale = this.getTreeScale(mapId, noiseVal);
+
+      // LOD: If chunk is distant (LOD > 0), use simplified materials
       if (lod > 0) {
-        const model = selectedGltf.scene.clone();
+        const model = treeGltf.scene.clone();
         model.scale.setScalar(targetScale);
 
         // Ground alignment
-        const minY = (selectedGltf as any).minY || 0;
+        const minY = (treeGltf as any).minY || 0;
         model.position.y = -minY * targetScale;
 
         model.traverse((child: any) => {
@@ -449,11 +456,11 @@ class TerrainChunk {
         return group;
       }
 
-      const model = selectedGltf.scene.clone();
+      const model = treeGltf.scene.clone();
       model.scale.setScalar(targetScale);
 
       // Fast O(1) ground alignment using pre-calculated bounding box minY (no vertex traversal overhead!)
-      const minY = (selectedGltf as any).minY || 0;
+      const minY = (treeGltf as any).minY || 0;
       model.position.y = -minY * targetScale;
 
       group.add(model);
@@ -805,7 +812,7 @@ class EnemyProjectile {
       }
       this.game.damagePlayer(demonDamage);
       this.game.createSparks(this.mesh.position);
-      this.game.triggerScreenShake(0.3);
+      this.game.triggerScreenShake(0.18);
       this.destroy();
       return;
     }
@@ -1372,8 +1379,11 @@ class Demon {
           this.lastAttackTime = now;
 
           // Play punch/attack action if animation is available
-          if (punchAction) {
-            punchAction.reset().setEffectiveWeight(1.0).setLoop(THREE.LoopOnce, 1).play();
+          if (this.animations && this.animations['Punch']) {
+            const pAction = this.animations['Punch'];
+            pAction.setLoop(THREE.LoopOnce, 1);
+            pAction.clampWhenFinished = false;
+            this.fadeToAction('Punch', 0.1);
           }
 
           // Damage scaled by scale factor and gameLevel brackets (lower on 1-10, slightly increase on upper levels)
@@ -1386,17 +1396,16 @@ class Demon {
           }
           this.game.damagePlayer(damage);
 
-          // Physical pushback: push player away based on giant's impact direction
+          // Physical pushback: horizontal impact shove without launching player into the sky
           const pushDir = new THREE.Vector3().subVectors(playerPos, this.mesh.position);
           pushDir.y = 0;
           pushDir.normalize();
-          const pushForce = 45 * (this.enemyScale / 3.0);
+          const pushForce = 35 * (this.enemyScale / 3.0);
           this.game.velocity.x += pushDir.x * pushForce;
           this.game.velocity.z += pushDir.z * pushForce;
-          this.game.velocity.y += 18 * (this.enemyScale / 3.0); // lift up
-          this.game.onGround = false;
+          this.game.velocity.y = Math.min(this.game.velocity.y + 2.0, 4.0); // subtle impact stagger instead of launch
 
-          this.game.triggerScreenShake(0.4 * (this.enemyScale / 3.0));
+          this.game.triggerScreenShake(0.22);
         } else {
           if (!isPunching) {
             this.fadeToAction('Idle', 0.25);
@@ -1608,7 +1617,11 @@ const MAP_CONFIGS: Record<string, any> = {
       return { r, g, b };
     },
     treeColors: { foliage: 0x1a3a1c, trunk: 0x3a2a1a, snowCap: true, snowColor: 0xe4ecf0 },
-    treeRange: [0.1, 0.55],
+    treeRange: [0.12, 0.55],
+    waterLevel: 22,
+    waterColor: 0x2288b8,
+    waterRoughness: 0.12,
+    waterOpacity: 0.84,
     skyGradient: ['#102840', '#3a7bb8', '#6aade0', '#9ecce8', '#c8dce8'],
     weather: {
       clear: { skyColor: 0x8cb8d8, fogColor: 0xbdd0e4, fogDensity: 0.0020, sunIntensity: 1.6, ambientIntensity: 0.55 },
@@ -1636,7 +1649,11 @@ const MAP_CONFIGS: Record<string, any> = {
       return { r, g, b };
     },
     treeColors: { foliage: 0x228b22, trunk: 0x5c3a21, snowCap: false, snowColor: 0x228b22 },
-    treeRange: [0.08, 0.62],
+    treeRange: [0.10, 0.62],
+    waterLevel: 24,
+    waterColor: 0x14587a,
+    waterRoughness: 0.16,
+    waterOpacity: 0.85,
     skyGradient: ['#0a1628', '#2a6090', '#4a90d0', '#80bfe8', '#c0e8f0'],
     weather: {
       clear: { skyColor: 0x6ab4e8, fogColor: 0x90c8e0, fogDensity: 0.0018, sunIntensity: 1.8, ambientIntensity: 0.6 },
@@ -1664,7 +1681,11 @@ const MAP_CONFIGS: Record<string, any> = {
       return { r, g, b };
     },
     treeColors: { foliage: 0xd46a15, trunk: 0x4a2a0a, snowCap: false, snowColor: 0xd46a15 },
-    treeRange: [0.08, 0.58],
+    treeRange: [0.10, 0.58],
+    waterLevel: 20,
+    waterColor: 0x185a75,
+    waterRoughness: 0.14,
+    waterOpacity: 0.85,
     skyGradient: ['#0e1c2e', '#285885', '#528ebb', '#94c0dd', '#d6e6f2'],
     weather: {
       clear: { skyColor: 0x4e8cb8, fogColor: 0xa8b8c8, fogDensity: 0.0016, sunIntensity: 1.4, ambientIntensity: 0.6 },
@@ -1694,6 +1715,10 @@ const MAP_CONFIGS: Record<string, any> = {
     },
     treeColors: { foliage: 0x3a6830, trunk: 0x2a5020, snowCap: false, snowColor: 0x3a6830 },
     treeRange: [0.08, 0.35],
+    waterLevel: 18,
+    waterColor: 0x0fa2c2,
+    waterRoughness: 0.12,
+    waterOpacity: 0.88,
     skyGradient: ['#0d2238', '#1a4a75', '#2c70a8', '#559acc', '#92c2e0'],
     weather: {
       clear: { skyColor: 0x488ec4, fogColor: 0xa8c4d8, fogDensity: 0.0015, sunIntensity: 1.3, ambientIntensity: 0.6 },
@@ -2067,9 +2092,10 @@ class Game {
       }
     }
 
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    const vp = this.getViewportSize();
+    this.renderer.setSize(vp.width, vp.height, false);
     // Cap pixel ratio at 1.5 — avoids rendering 4× pixels on HiDPI screens
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.25 : 1.5));
     this.renderer.shadowMap.enabled = true;
     // PCFShadowMap: High-speed single-tap filtering optimized for Intel Iris & integrated GPUs
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -2089,9 +2115,7 @@ class Game {
     canvasEl.addEventListener('webglcontextrestored', () => {
       console.log('[WebGL] Context successfully restored. Resuming render loop.');
       this.isContextLost = false;
-      if (this.renderer) {
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-      }
+      this.handleResize();
     }, false);
 
     // Cleanup GPU resources cleanly on soft refresh or page navigation
@@ -2103,8 +2127,13 @@ class Game {
     this.scene.background = new THREE.Color(this.mapConfig.weather.clear.skyColor);
     this.scene.fog = new THREE.FogExp2(this.mapConfig.fogColor, this.mapConfig.fogDensity * 0.15);
 
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.5, 8000);
+    this.camera = new THREE.PerspectiveCamera(65, vp.width / vp.height, 0.5, 8000);
     this.clock = new THREE.Clock();
+
+    // Multi-stage auto-resize sync during boot (resolves Safari PWA initial half-black viewport)
+    [50, 150, 300, 600, 1200, 2000].forEach(delay => {
+      setTimeout(this.handleResize, delay);
+    });
 
     this.updateLoadingProgress(15, "Loading textures & environmental assets...");
     await this.loadAssets();
@@ -2169,6 +2198,7 @@ class Game {
     this.setupPostProcessing();
     this.setupMinimap();
     this.setupECG();
+    this.setGraphicsQuality(this.graphicsQuality);
 
     this.updateLoadingProgress(100, "Initialization Complete!");
 
@@ -2195,7 +2225,7 @@ class Game {
   loadAssets() {
     const textureLoader = new THREE.TextureLoader();
     const gltfLoader = new GLTFLoader();
-    this.obstacleGltfs = [];
+    this.treeGltfs = {};
 
     const loadTexture = () => {
       return new Promise<void>(resolve => {
@@ -2266,10 +2296,13 @@ class Game {
       this.updateLoadingProgress(30, "Establishing connection to asset servers...");
 
       const urls = [
-        '/assets/objects/obsticle1.glb',
-        '/assets/objects/obsticle2.glb',
-        '/assets/objects/Xbot.glb',
-        '/assets/objects/RobotExpressive.glb'
+        '/assets/objects/arctic-tree.glb',
+        '/assets/objects/christmas-tree.glb',
+        '/assets/objects/green-tree.glb',
+        '/assets/objects/autumn-tree.glb',
+        '/assets/objects/desert-tree.glb',
+        '/assets/objects/Xbot-optimized.glb',
+        '/assets/objects/RobotExpressive-optimized.glb'
       ];
 
       // Download all models concurrently in parallel (massively speeds up load time!)
@@ -2292,7 +2325,7 @@ class Game {
         if (!res || !res.gltf) return;
         const { url, gltf } = res;
 
-        if (url.includes('obsticle1') || url.includes('obsticle2')) {
+        if (url.includes('tree.glb')) {
           gltf.scene.traverse((child: any) => {
             if (child.isMesh) {
               child.castShadow = true;
@@ -2330,16 +2363,26 @@ class Game {
               }
             }
           });
-          const isObs1 = url.includes('obsticle1');
           const box = new THREE.Box3().setFromObject(gltf.scene);
           (gltf as any).minY = box.min.y;
-          (gltf as any).isObsticle1 = isObs1;
-          (gltf as any).isObsticle2 = !isObs1;
-          this.obstacleGltfs.push(gltf);
-        } else if (url.includes('Xbot.glb')) {
+
+          if (url.includes('arctic-tree') || url.includes('christmas-tree')) {
+            if (!this.treeGltfs['arctic']) this.treeGltfs['arctic'] = [];
+            this.treeGltfs['arctic'].push(gltf);
+          } else if (url.includes('green-tree')) {
+            if (!this.treeGltfs['forest']) this.treeGltfs['forest'] = [];
+            this.treeGltfs['forest'].push(gltf);
+          } else if (url.includes('autumn-tree')) {
+            if (!this.treeGltfs['autumn']) this.treeGltfs['autumn'] = [];
+            this.treeGltfs['autumn'].push(gltf);
+          } else if (url.includes('desert-tree')) {
+            if (!this.treeGltfs['desert']) this.treeGltfs['desert'] = [];
+            this.treeGltfs['desert'].push(gltf);
+          }
+        } else if (url.includes('Xbot')) {
           (gltf as any).isXbot = true;
           this.robotGltf = gltf;
-        } else if (url.includes('RobotExpressive.glb')) {
+        } else if (url.includes('RobotExpressive')) {
           (gltf as any).isRobotExpressive = true;
           this.demonGltf = gltf;
         }
@@ -2508,10 +2551,17 @@ class Game {
     h = h * 0.3 + ridge * 0.7;
     h *= envelope;
 
+    // Organic Lake Basins: Smooth, natural depressions where lakes and ponds form
+    const lakeNoise = (this.noise.noise(nx * 2.2 + 88, nz * 2.2 + 88) + 1) * 0.5;
+    if (lakeNoise < 0.32) {
+      const lakeFactor = (0.32 - lakeNoise) / 0.32;
+      h -= lakeFactor * 0.22;
+    }
+
     h += (this.noise.fbm(nx * 12, nz * 12, 4, 2.0, 0.45) + 1) * 0.04;
     h += (this.noise.fbm(nx * 28, nz * 28, 3, 2.0, 0.4) + 1) * 0.012;
 
-    return Math.max(h * this.MAX_HEIGHT, 15);
+    return Math.max(h * this.MAX_HEIGHT, 6);
   }
 
   getHeightAt(x, z) {
@@ -3072,6 +3122,11 @@ class Game {
           this.animations['Walking'] = action;
         } else if (name === 'run') {
           this.animations['Running'] = action;
+        } else if (name === 'sneak_pose' || name === 'sneak') {
+          this.animations['Sneak'] = action;
+        } else if (name === 'sad_pose' || name === 'sad') {
+          this.animations['Sad'] = action;
+          this.animations['Sitting'] = action; // Fallback for dying pose
         } else if (name === 'agree' || name === 'jump') {
           this.animations['Jump'] = action;
           this.animations['ThumbsUp'] = action;
@@ -3554,7 +3609,7 @@ class Game {
   }
 
   triggerScreenShake(intensity = 0.5) {
-    this.screenShake = intensity;
+    this.screenShake = Math.max(this.screenShake, intensity);
   }
 
   // ==============================================================
@@ -3603,6 +3658,135 @@ class Game {
       osc.start();
       osc.stop(ctx.currentTime + 0.12);
     } catch (e) { }
+  }
+
+  triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'selection' | 'tick' | 'success' | 'warning' = 'light') {
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+        switch (type) {
+          case 'tick':
+            navigator.vibrate(8);
+            break;
+          case 'light':
+            navigator.vibrate(15);
+            break;
+          case 'selection':
+            navigator.vibrate(22);
+            break;
+          case 'medium':
+            navigator.vibrate(35);
+            break;
+          case 'heavy':
+            navigator.vibrate(50);
+            break;
+          case 'success':
+            navigator.vibrate([15, 30, 25]);
+            break;
+          case 'warning':
+            navigator.vibrate([30, 40, 30]);
+            break;
+          default:
+            navigator.vibrate(15);
+            break;
+        }
+      }
+    } catch (e) { }
+  }
+
+  playUiSound(type: 'click' | 'tick' | 'select' | 'deploy' | 'toggle' | 'switch' = 'click') {
+    try {
+      const ctx = (this as any).audioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+      (this as any).audioCtx = ctx;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      switch (type) {
+        case 'tick': {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1400, now);
+          osc.frequency.exponentialRampToValueAtTime(700, now + 0.02);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.02);
+          break;
+        }
+        case 'select': {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(1040, now + 0.05);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.05);
+          break;
+        }
+        case 'deploy': {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(740, now + 0.09);
+          osc.frequency.exponentialRampToValueAtTime(1100, now + 0.16);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.16);
+          break;
+        }
+        case 'toggle': {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(650, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.04);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.04);
+          break;
+        }
+        case 'switch': {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.exponentialRampToValueAtTime(800, now + 0.06);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.06);
+          break;
+        }
+        case 'click':
+        default: {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(950, now);
+          osc.frequency.exponentialRampToValueAtTime(450, now + 0.035);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.035);
+          break;
+        }
+      }
+    } catch (e) { }
+  }
+
+  triggerUiFeedback(hapticType: 'light' | 'medium' | 'heavy' | 'selection' | 'tick' | 'success' | 'warning' = 'light', soundType: 'click' | 'tick' | 'select' | 'deploy' | 'toggle' | 'switch' = 'click') {
+    this.triggerHaptic(hapticType);
+    this.playUiSound(soundType);
   }
 
   shootPrimary() {
@@ -4151,6 +4335,17 @@ class Game {
       }
     }
 
+    // Non-looping sneak_pose damage flinch (plays once briefly without shaking or looping)
+    if (amount > 0 && !this.playerDead && this.health > 0) {
+      if (this.animations && (this.animations['sneak_pose'] || this.animations['Sneak'])) {
+        const hitAction = this.animations['sneak_pose'] || this.animations['Sneak'];
+        hitAction.setLoop(THREE.LoopOnce, 1);
+        hitAction.clampWhenFinished = false;
+        this.fadeToAction(hitAction.getClip().name, 0.08);
+        this.damageAnimTimer = 0.18; // Brief 0.18s flinch window
+      }
+    }
+
     if (this.health <= 0) {
       if (this.lives > 1) {
         this.lives--;
@@ -4277,7 +4472,7 @@ class Game {
     document.body.classList.remove('in-game');
 
     const deployText = document.getElementById('deploy-text');
-    if (deployText) deployText.textContent = "DEPLOY";
+    if (deployText) deployText.textContent = "START GAME";
 
     const bEl = document.getElementById('blocker');
     if (bEl) bEl.style.display = 'flex';
@@ -4343,8 +4538,8 @@ class Game {
     const deployIcon = document.getElementById('deploy-icon-elem');
 
     if (header) header.innerHTML = 'TACTICAL<br><span class="title-accent">ASSAULT</span>';
-    if (sub) sub.textContent = "SELECT YOUR BATTLEFIELD";
-    if (deployText) deployText.textContent = "DEPLOY";
+    if (sub) sub.textContent = "SELECT YOUR MAP";
+    if (deployText) deployText.textContent = "START GAME";
     if (deployIcon) deployIcon.textContent = "▶";
     blocker.style.background = "rgba(5, 10, 20, 0.35)";
 
@@ -4585,6 +4780,7 @@ class Game {
 
   setGraphicsQuality(quality: string) {
     this.graphicsQuality = quality;
+    this.triggerUiFeedback('light', 'click');
     try {
       localStorage.setItem('tactical_quality', quality);
     } catch (e) { }
@@ -4596,8 +4792,8 @@ class Game {
     if (quality === 'low') {
       shadowSize = 512;
       this.enemySpawnInterval = 4.5;
-      this.treeStep = 90;
-      this.coverStep = 240;
+      this.treeStep = 100;
+      this.coverStep = 180;
       this.maxDemons = 6;
     } else if (quality === 'medium') {
       shadowSize = 1024;
@@ -4614,8 +4810,7 @@ class Game {
     }
 
     if (this.renderer) {
-      this.renderer.setPixelRatio(nativeRatio);
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.handleResize();
       if (this.sun && this.sun.shadow) {
         this.sun.shadow.mapSize.width = shadowSize;
         this.sun.shadow.mapSize.height = shadowSize;
@@ -4624,6 +4819,19 @@ class Game {
           this.sun.shadow.map = null;
         }
       }
+    }
+
+    // Refresh tactical cover (trees & objects) dynamically across active terrain chunks
+    if (this.chunks && this.chunks.size > 0) {
+      this.chunks.forEach(chunk => {
+        if (chunk.coverGroup) {
+          chunk.scene.remove(chunk.coverGroup);
+          chunk.coverGroup = null;
+        }
+        if (chunk.lod < 2) {
+          chunk.createTacticalCover();
+        }
+      });
     }
 
     // Update UI buttons
@@ -4639,6 +4847,7 @@ class Game {
 
   changeMap(mapId: string) {
     if (!MAP_CONFIGS[mapId]) return;
+    this.triggerUiFeedback('selection', 'select');
     this.mapId = mapId;
     this.mapConfig = MAP_CONFIGS[mapId];
     this.MAX_HEIGHT = this.mapConfig.MAX_HEIGHT;
@@ -4660,6 +4869,13 @@ class Game {
 
     // Recreate lighting
     this.createLighting();
+
+    // Update shared water material for new map theme
+    if (this._waterMat) {
+      this._waterMat.color.setHex((this.mapConfig && this.mapConfig.waterColor) || 0x1a6b99);
+      this._waterMat.roughness = (this.mapConfig && this.mapConfig.waterRoughness) || 0.14;
+      this._waterMat.opacity = (this.mapConfig && this.mapConfig.waterOpacity) || 0.85;
+    }
 
     // Remove old skybox dome and cylinder
     const skyboxToRemove: THREE.Object3D[] = [];
@@ -4785,7 +5001,7 @@ class Game {
     const enterImmersiveGame = () => {
       this.requestGyroPermission();
       const deployTextEl = document.getElementById('deploy-text');
-      const isFreshDeploy = deployTextEl && (deployTextEl.textContent === 'DEPLOY' || deployTextEl.textContent === 'RESPAWN');
+      const isFreshDeploy = deployTextEl && (deployTextEl.textContent === 'START GAME' || deployTextEl.textContent === 'DEPLOY' || deployTextEl.textContent === 'RESPAWN');
 
       if (this.playerDead) {
         this.respawn();
@@ -5032,6 +5248,7 @@ class Game {
       const handleFsToggle = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
+        this.triggerUiFeedback('light', 'click');
         toggleFullscreen();
       };
       fsBtn.addEventListener('click', handleFsToggle);
@@ -5045,6 +5262,7 @@ class Game {
       const handleDockToggle = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
+        this.triggerUiFeedback('light', 'toggle');
         this.isHudDocked = !this.isHudDocked;
         if (this.isHudDocked) {
           infoPanel.classList.add('is-docked');
@@ -5065,6 +5283,7 @@ class Game {
       const handleRestart = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
+        this.triggerUiFeedback('medium', 'deploy');
         this.restartGame();
       };
       restartBtn.addEventListener('click', handleRestart);
@@ -5076,6 +5295,7 @@ class Game {
       const handleMenu = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
+        this.triggerUiFeedback('light', 'click');
         this.returnToMenu();
       };
       menuBtn.addEventListener('click', handleMenu);
@@ -5088,6 +5308,7 @@ class Game {
       const handleDeployAction = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
+        this.triggerUiFeedback('medium', 'deploy');
         tryFullscreen();
         enterImmersiveGame();
       };
@@ -5274,6 +5495,7 @@ class Game {
         lastFireTouchTime = now;
 
         if (this.isLocked && !this.playerDead) {
+          this.triggerHaptic('heavy');
           this.mouseLeftDown = true;
           btn.classList.add('active');
           this.shootPrimary(); // Fires single-shot immediately or triggers auto-fire / charging
@@ -5319,8 +5541,10 @@ class Game {
         this.isSprintLocked = active;
         if (active) {
           btnSprint.classList.add('active');
+          this.triggerUiFeedback('light', 'toggle');
         } else {
           btnSprint.classList.remove('active');
+          this.triggerUiFeedback('light', 'click');
         }
       };
 
@@ -5376,6 +5600,7 @@ class Game {
         e.preventDefault();
         e.stopPropagation();
         if (this.isLocked && !this.playerDead) {
+          this.triggerUiFeedback('medium', 'click');
           this.mouseRightDown = true;
           this.isADS = true;
           btnAds.classList.add('active');
@@ -5402,6 +5627,7 @@ class Game {
         e.preventDefault();
         e.stopPropagation();
         if (this.isLocked && !this.playerDead) {
+          this.triggerUiFeedback('light', 'click');
           this.keys['Space'] = true;
           btnJump.classList.add('active');
         }
@@ -5426,6 +5652,7 @@ class Game {
         e.preventDefault();
         e.stopPropagation();
         if (this.isLocked && !this.playerDead) {
+          this.triggerUiFeedback('heavy', 'switch');
           btnReload.classList.add('active');
           this.reloadWeapon();
           setTimeout(() => btnReload.classList.remove('active'), 250);
@@ -5442,6 +5669,7 @@ class Game {
       const handlePauseAction = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
+        this.triggerUiFeedback('light', 'click');
         this.pauseGame();
       };
       btnPause.addEventListener('touchstart', handlePauseAction, { capture: true, passive: false });
@@ -5460,6 +5688,7 @@ class Game {
           e.stopPropagation();
           const index = parseInt(target.dataset.index, 10);
           if (!isNaN(index)) {
+            this.triggerUiFeedback('selection', 'switch');
             this.useInventoryItem(index);
           }
         }
@@ -5469,17 +5698,62 @@ class Game {
       inventoryHud.addEventListener('click', handleInventorySelect);
     }
 
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      if (this.composer) {
-        this.composer.setSize(window.innerWidth, window.innerHeight);
-      }
+    window.addEventListener('resize', this.handleResize);
+    window.addEventListener('orientationchange', () => {
+      this.handleResize();
+      setTimeout(this.handleResize, 100);
+      setTimeout(this.handleResize, 350);
+      setTimeout(this.handleResize, 700);
     });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', this.handleResize);
+    }
+    window.addEventListener('pageshow', this.handleResize);
+    window.addEventListener('focus', this.handleResize);
 
     this.setupGyroscope();
   }
+
+  getViewportSize() {
+    const docEl = document.documentElement;
+    const body = document.body;
+    const vv = window.visualViewport;
+
+    const w = Math.max(
+      window.innerWidth || 0,
+      docEl ? docEl.clientWidth : 0,
+      body ? body.clientWidth : 0,
+      vv ? Math.round(vv.width) : 0
+    );
+    const h = Math.max(
+      window.innerHeight || 0,
+      docEl ? docEl.clientHeight : 0,
+      body ? body.clientHeight : 0,
+      vv ? Math.round(vv.height) : 0
+    );
+
+    return {
+      width: w > 0 ? w : (window.innerWidth || 800),
+      height: h > 0 ? h : (window.innerHeight || 600)
+    };
+  }
+
+  handleResize = () => {
+    if (!this.renderer || !this.camera) return;
+    const vp = this.getViewportSize();
+    if (vp.width <= 0 || vp.height <= 0) return;
+
+    this.camera.aspect = vp.width / vp.height;
+    this.camera.updateProjectionMatrix();
+
+    // Passing false prevents Three.js from injecting inline style overrides over CSS 100%
+    this.renderer.setSize(vp.width, vp.height, false);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.25 : 1.5));
+
+    if (this.composer) {
+      this.composer.setSize(vp.width, vp.height);
+    }
+  };
 
   // ==============================================================
   //  GYROSCOPE AIMING (PUBG Mobile / BGMI Motion Aiming & Settings)
@@ -5506,7 +5780,12 @@ class Game {
               this.startGyroscope();
             }
           })
-          .catch(() => { });
+          .catch(() => { })
+          .finally(() => {
+            this.handleResize();
+            setTimeout(this.handleResize, 100);
+            setTimeout(this.handleResize, 350);
+          });
       } else if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
         (DeviceOrientationEvent as any).requestPermission()
           .then((state: string) => {
@@ -5515,7 +5794,12 @@ class Game {
               this.startGyroscope();
             }
           })
-          .catch(() => { });
+          .catch(() => { })
+          .finally(() => {
+            this.handleResize();
+            setTimeout(this.handleResize, 100);
+            setTimeout(this.handleResize, 350);
+          });
       } else {
         this.gyroPermissionGranted = true;
         this.startGyroscope();
@@ -5681,7 +5965,13 @@ class Game {
 
     const updateSliderUI = () => {
       const pct = Math.round(this.gyroMultiplier * 100);
-      if (slider) slider.value = String(pct);
+      if (slider) {
+        slider.value = String(pct);
+        const min = parseFloat(slider.min) || 20;
+        const max = parseFloat(slider.max) || 300;
+        const fillPercent = Math.max(0, Math.min(100, ((pct - min) / (max - min)) * 100));
+        slider.style.background = `linear-gradient(to right, #ffffff 0%, #ffffff ${fillPercent}%, rgba(255, 255, 255, 0.25) ${fillPercent}%, rgba(255, 255, 255, 0.25) 100%)`;
+      }
       if (valueBadge) valueBadge.textContent = `${pct}%`;
     };
 
@@ -5693,6 +5983,7 @@ class Game {
         e.preventDefault();
         e.stopPropagation();
         this.gyroEnabled = !this.gyroEnabled;
+        this.triggerUiFeedback('light', 'toggle');
         updateToggleUI();
         try {
           localStorage.setItem('tactical_gyro_enabled', String(this.gyroEnabled));
@@ -5703,10 +5994,15 @@ class Game {
     }
 
     if (slider) {
+      let lastSliderVal = slider.value;
       const handleSliderChange = () => {
         const val = parseInt(slider.value, 10);
+        if (slider.value !== lastSliderVal) {
+          lastSliderVal = slider.value;
+          this.triggerUiFeedback('tick', 'tick');
+        }
         this.gyroMultiplier = Math.max(0.2, Math.min(3.0, val / 100));
-        if (valueBadge) valueBadge.textContent = `${val}%`;
+        updateSliderUI();
         try {
           localStorage.setItem('tactical_gyro_sens', String(this.gyroMultiplier));
         } catch (err) { }
@@ -5915,9 +6211,16 @@ class Game {
       }
     }
 
+    if (this.damageAnimTimer && this.damageAnimTimer > 0) {
+      this.damageAnimTimer -= dt;
+    }
+    const isTakingDamageAnim = this.damageAnimTimer > 0;
+
     if (this.onGround && !this.playerDead) {
       const isExpressiveFallback = this.robotGltf && (this.robotGltf as any).isRobotExpressive;
-      if (this.adsBlend > 0.3 && isExpressiveFallback) {
+      if (isTakingDamageAnim) {
+        // Playing non-looping sneak_pose damage flinch
+      } else if (this.adsBlend > 0.3 && isExpressiveFallback) {
         // Fallback model uses ThumbsUp as its aim pose
         this.fadeToAction('ThumbsUp', 0.3);
       } else if (isMoving) {
@@ -6287,11 +6590,11 @@ class Game {
       this.sun.target.updateMatrixWorld();
     }
 
-    // Screen shake
+    // Screen shake (crisp, pleasant impact jolt)
     if (this.screenShake > 0) {
-      this.camera.position.x += (Math.random() - 0.5) * this.screenShake * 3.0;
-      this.camera.position.y += (Math.random() - 0.5) * this.screenShake * 3.0;
-      this.screenShake = Math.max(0, this.screenShake - dt * 3.0);
+      this.camera.position.x += (Math.random() - 0.5) * this.screenShake * 1.2;
+      this.camera.position.y += (Math.random() - 0.5) * this.screenShake * 1.2;
+      this.screenShake = Math.max(0, this.screenShake - dt * 5.0);
     }
   }
 
@@ -6462,7 +6765,7 @@ class Game {
             const isRel = (index === this.activeSlot && this.isReloading);
 
             const imgTag = item.image
-              ? `<img src="${item.image}" class="slot-gun-img" alt="${item.name}" />`
+              ? `<img src="${item.image}" class="slot-gun-img slot-gun-${item.id}" alt="${item.name}" />`
               : `<span class="slot-item-emoji">${item.icon || '🔫'}</span>`;
 
             const bottomHtml = isRel
@@ -6831,6 +7134,19 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', onFirstInteraction, { capture: true });
   window.addEventListener('click', onFirstInteraction, { capture: true });
 
+  // Global feedback helper for standalone DOM handlers
+  (window as any).__tacticalFeedback = (hapticType = 'light', soundType = 'click') => {
+    if ((window as any).game && typeof (window as any).game.triggerUiFeedback === 'function') {
+      (window as any).game.triggerUiFeedback(hapticType, soundType);
+    } else {
+      try {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(hapticType === 'tick' ? 8 : (hapticType === 'medium' ? 35 : 15));
+        }
+      } catch (e) {}
+    }
+  };
+
   // Map selection touch & click handlers
   const mapCards = document.querySelectorAll('.map-card');
   const blocker = document.getElementById('blocker');
@@ -6838,6 +7154,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const handleMapSelect = (e: Event) => {
       e.preventDefault();
       e.stopPropagation(); // don't trigger deploy/blocker click
+      (window as any).__tacticalFeedback('selection', 'select');
       mapCards.forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
 
@@ -6864,6 +7181,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const handleQualitySelect = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
+      (window as any).__tacticalFeedback('light', 'click');
       const quality = (btn as HTMLElement).dataset.quality;
       if (quality && (window as any).game) {
         (window as any).game.setGraphicsQuality(quality);
@@ -6892,6 +7210,10 @@ window.addEventListener('DOMContentLoaded', () => {
       } else {
         rotateOverlay.style.display = 'none';
       }
+    }
+
+    if ((window as any).game && typeof (window as any).game.handleResize === 'function') {
+      (window as any).game.handleResize();
     }
   };
 
